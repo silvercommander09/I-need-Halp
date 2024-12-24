@@ -1,0 +1,226 @@
+from flask import Flask, render_template, request, redirect, url_for, flash
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from functools import wraps
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_socketio import SocketIO, emit
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = 'your_secret_key'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+
+db = SQLAlchemy(app)
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'  # Redirect unauthorized users to login
+
+socketio = SocketIO(app)
+
+# User model
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(100), unique=True, nullable=False)
+    password = db.Column(db.String(100), nullable=False)
+    role = db.Column(db.String(20), nullable=False)
+
+# Poll model
+class Poll(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    question = db.Column(db.String(200), nullable=False)
+    option1 = db.Column(db.String(100), nullable=False)
+    option2 = db.Column(db.String(100), nullable=False)
+    option3 = db.Column(db.String(100), nullable=False)
+    option4 = db.Column(db.String(100), nullable=False)
+    option5 = db.Column(db.String(100), nullable=False)
+    option6 = db.Column(db.String(100), nullable=False)
+    option7 = db.Column(db.String(100), nullable=False)
+    option8 = db.Column(db.String(100), nullable=False)
+    option1_votes = db.Column(db.Integer, default=0)
+    option2_votes = db.Column(db.Integer, default=0)
+    option3_votes = db.Column(db.Integer, default=0)
+    option4_votes = db.Column(db.Integer, default=0)
+    option5_votes = db.Column(db.Integer, default=0)
+    option6_votes = db.Column(db.Integer, default=0)
+    option7_votes = db.Column(db.Integer, default=0)
+    option8_votes = db.Column(db.Integer, default=0)
+
+# Vote model
+class Vote(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    poll_id = db.Column(db.Integer, db.ForeignKey('poll.id'), nullable=False)
+    vote = db.Column(db.String(100), nullable=False)  # Store the option they voted for
+    user = db.relationship('User', backref='votes')
+    poll = db.relationship('Poll', backref='votes')
+
+# Load user for login
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+# Custom role-based decorators
+def role_required(role):
+    def decorator(f):
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            if current_user.role != role:
+                flash("Unauthorized access!", "danger")
+                return redirect(url_for('login'))
+            return f(*args, **kwargs)
+        return wrapped
+    return decorator
+
+@app.route('/')
+def index():
+    return redirect(url_for('login'))
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        user = User.query.filter_by(username=username).first()
+        if user and check_password_hash(user.password, password):
+            login_user(user)
+            return redirect(url_for(f"{user.role}_dashboard"))
+        else:
+            flash('Invalid username or password', 'danger')
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash("You have been logged out.", "success")
+    return redirect(url_for('login'))
+
+@app.route('/admin/dashboard')
+@login_required
+@role_required('admin')
+def admin_dashboard():
+    users = User.query.all()
+    return render_template('view_users.html', users=users)
+
+@app.route('/student/dashboard')
+@login_required
+@role_required('student')
+def student_dashboard():
+    return render_template('student_dashboard.html')
+
+@app.route('/student/election', methods=['GET', 'POST'])
+@login_required
+@role_required('student')
+def election():
+    poll = Poll.query.first()  # Fetch the first poll
+
+    if poll is None:
+        flash("No polls available at the moment.", "danger")
+        return redirect(url_for('student_dashboard'))  # Redirect if no poll exists
+
+    if request.method == 'POST':
+        user_vote = request.form['vote']  # Get the selected option from the form
+        existing_vote = Vote.query.filter_by(user_id=current_user.id, poll_id=poll.id).first()
+
+        if existing_vote:
+            flash("You have already voted!", 'danger')
+        else:
+            new_vote = Vote(user_id=current_user.id, poll_id=poll.id, vote=user_vote)
+            db.session.add(new_vote)
+
+            # Update vote count for the selected option
+            if user_vote == poll.option1:
+                poll.option1_votes += 1
+            elif user_vote == poll.option2:
+                poll.option2_votes += 1
+            elif user_vote == poll.option3:
+                poll.option3_votes += 1
+            elif user_vote == poll.option4:
+                poll.option4_votes += 1
+            elif user_vote == poll.option5:
+                poll.option5_votes += 1
+            elif user_vote == poll.option6:
+                poll.option6_votes += 1
+            elif user_vote == poll.option7:
+                poll.option7_votes += 1
+            elif user_vote == poll.option8:
+                poll.option8_votes += 1
+
+            db.session.commit()
+            flash("Your vote has been recorded.", 'success')
+
+    return render_template('election.html', poll=poll)
+
+@app.route('/student/ecommerce')
+@login_required
+@role_required('student')
+def ecommerce():
+    return render_template('ecommerce.html')
+
+from flask import render_template, request
+
+@app.route('/account', methods=['GET'])
+def account():
+    student_id = request.args.get('student_id', default=None)
+
+    student_info = {}
+    if student_id:
+        #This assumes you have a 'students' table in your database. Adjust the query if needed.
+        result = db.session.execute(db.text('SELECT * FROM students WHERE student_id = :student_id'), {'student_id': student_id}).fetchone() #Use parameterized queries to prevent SQL injection
+
+        if result:
+            student_info = dict(result) #Convert the Row object to a dictionary
+
+    return render_template('account.html', student_info=student_info)
+
+
+@app.route('/forums')
+@login_required
+def forums():
+    return render_template('forums.html')
+
+@socketio.on('get_poll_results')
+def handle_poll_results():
+    poll = Poll.query.first()
+    emit('poll_results', {
+        'option1_votes': poll.option1_votes,
+        'option2_votes': poll.option2_votes,
+        'option3_votes': poll.option3_votes,
+        'option4_votes': poll.option4_votes,
+        'option5_votes': poll.option5_votes,
+        'option6_votes': poll.option6_votes,
+        'option7_votes': poll.option7_votes,
+        'option8_votes': poll.option8_votes
+    })
+
+if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
+
+        # Add a poll if it doesn't already exist
+        poll = Poll.query.first()
+        if not poll:
+            new_poll = Poll(
+                question="Which option do you prefer?",
+                option1="Option A",
+                option2="Option B",
+                option3="Option C",
+                option4="Option D",
+                option5="Option E",
+                option6="Option F",
+                option7="Option G",
+                option8="Option H"
+            )
+            db.session.add(new_poll)
+            db.session.commit()
+            print("Poll created!")
+
+             # Add a temporary user 'ken' if it doesn't exist
+        temp_user = User.query.filter_by(username='ken').first()
+        if not temp_user:
+            hashed_password = generate_password_hash('1234')
+            temp_user = User(username='ken', password=hashed_password, role='student')
+            db.session.add(temp_user)
+            db.session.commit()
+            print("Temporary user 'ken' created!")
+
+    socketio.run(app, debug=False, port=5000)
