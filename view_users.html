@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View/Edit User</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f2f2f2;
+        }
+        header {
+            background-color: #093241;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+        }
+        header nav {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        header nav a {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        header nav a:hover {
+            text-decoration: underline;
+        }
+        .container {
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .form-container {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .form-container input {
+            padding: 8px;
+            margin: 5px;
+            width: 250px;
+        }
+        .form-container button {
+            padding: 8px 16px;
+            background-color: #17556A;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .form-container button:hover {
+            background-color: #093241;
+        }
+        footer {
+            background-color: #17556A;
+            color: white;
+            text-align: center;
+            padding: 10px 20px;
+            position: relative;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Edit User: {{ user.username }}</h1>
+        <nav>
+            <a href="{{ url_for('home') }}">Home</a>
+            <a href="{{ url_for('admin_dashboard') }}">Dashboard</a>
+            <a href="{{ url_for('logout') }}">Logout</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <h2>Update User Details</h2>
+        <form method="POST">
+            <div class="form-container">
+                <label for="student_id">Student ID:</label>
+                <input type="text" name="student_id" value="{{ user.student_id }}" required><br>
+
+                <label for="year">Year:</label>
+                <input type="text" name="year" value="{{ user.year }}" required><br>
+
+                <label for="section">Section:</label>
+                <input type="text" name="section" value="{{ user.section }}" required><br>
+
+                <label for="password">Password:</label>
+                <input type="password" name="password" value="{{ user.password }}" required><br>
+
+                <button type="submit">Save Changes</button>
+            </div>
+        </form>
+
+        <a href="{{ url_for('manage_users') }}">Back to Manage Users</a>
+    </div>
+
+    <footer>
+        <p>&copy; 2024 ICpEP.SE - PSU UC. All rights reserved.</p>
+    </footer>
+</body>
+</html>
