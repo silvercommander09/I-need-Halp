@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Batches - RHU Inventory{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Medicine Batches</h1>
+    <a href="{{ url_for('add_batch') }}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Add Batch
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if batches %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Batch Number</th>
+                        <th>Medicine</th>
+                        <th>Quantity</th>
+                        <th>Manufacturing Date</th>
+                        <th>Expiration Date</th>
+                        <th>Unit Price</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for batch in batches %}
+                    <tr>
+                        <td>{{ batch.batch_number }}</td>
+                        <td>{{ batch.medicine.name }}</td>
+                        <td>
+                            <span class="badge bg-{{ 'danger' if batch.quantity <= 10 else 'success' }}">
+                                {{ batch.quantity }}
+                            </span>
+                        </td>
+                        <td>{{ batch.manufacturing_date or '-' }}</td>
+                        <td>{{ batch.expiration_date }}</td>
+                        <td>${{ "%.2f"|format(batch.unit_price or 0) }}</td>
+                        <td>
+                            {% if batch.is_expired %}
+                                <span class="badge bg-danger">Expired</span>
+                            {% elif batch.days_until_expiration <= 30 %}
+                                <span class="badge bg-warning">Expiring Soon</span>
+                            {% else %}
+                                <span class="badge bg-success">Good</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="fas fa-boxes fa-3x text-muted mb-3"></i>
+            <p class="text-muted">No batches found. <a href="{{ url_for('add_batch') }}">Add your first batch</a>.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

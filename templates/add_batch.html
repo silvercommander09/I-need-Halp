@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Add Batch - RHU Inventory{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Add Medicine Batch</h1>
+    <a href="{{ url_for('batches') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Batches
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="batch_number" class="form-label">Batch Number *</label>
+                        <input type="text" class="form-control" id="batch_number" name="batch_number" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="medicine_id" class="form-label">Medicine *</label>
+                        <select class="form-select" id="medicine_id" name="medicine_id" required>
+                            <option value="">Select Medicine</option>
+                            {% for medicine in medicines %}
+                            <option value="{{ medicine.id }}">{{ medicine.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="quantity" class="form-label">Quantity *</label>
+                                <input type="number" class="form-control" id="quantity" name="quantity" min="1" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="unit_price" class="form-label">Unit Price</label>
+                                <input type="number" class="form-control" id="unit_price" name="unit_price" step="0.01" min="0">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="manufacturing_date" class="form-label">Manufacturing Date</label>
+                                <input type="date" class="form-control" id="manufacturing_date" name="manufacturing_date">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="expiration_date" class="form-label">Expiration Date *</label>
+                                <input type="date" class="form-control" id="expiration_date" name="expiration_date" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('batches') }}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Batch
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Reports - RHU Inventory{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Reports</h1>
+</div>
+
+<div class="row">
+    <!-- Stock Levels Report -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Stock Levels</h5>
+            </div>
+            <div class="card-body">
+                {% if stock_report %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Medicine</th>
+                                <th>Total Stock</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in stock_report %}
+                            <tr>
+                                <td>{{ item.name }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'danger' if item.total_quantity <= 10 else 'success' }}">
+                                        {{ item.total_quantity }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No stock data available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Expiring Medicines Report -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-clock"></i> Expiring Medicines</h5>
+            </div>
+            <div class="card-body">
+                {% if expiring_report %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Medicine</th>
+                                <th>Batch</th>
+                                <th>Expires</th>
+                                <th>Days Left</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for batch in expiring_report %}
+                            <tr>
+                                <td>{{ batch.medicine.name }}</td>
+                                <td>{{ batch.batch_number }}</td>
+                                <td>{{ batch.expiration_date }}</td>
+                                <td>
+                                    {% if batch.days_until_expiration < 0 %}
+                                        <span class="badge bg-danger">Expired</span>
+                                    {% elif batch.days_until_expiration <= 7 %}
+                                        <span class="badge bg-danger">{{ batch.days_until_expiration }} days</span>
+                                    {% elif batch.days_until_expiration <= 30 %}
+                                        <span class="badge bg-warning">{{ batch.days_until_expiration }} days</span>
+                                    {% else %}
+                                        <span class="badge bg-success">{{ batch.days_until_expiration }} days</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No expiring medicines found.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

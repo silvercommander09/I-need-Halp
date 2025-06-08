@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Create Order - RHU Inventory{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Create Order</h1>
+    <a href="{{ url_for('orders') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Orders
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-10">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" id="orderForm">
+                    <div class="mb-3">
+                        <label for="supplier_id" class="form-label">Supplier *</label>
+                        <select class="form-select" id="supplier_id" name="supplier_id" required>
+                            <option value="">Select Supplier</option>
+                            {% for supplier in suppliers %}
+                            <option value="{{ supplier.id }}">{{ supplier.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <h5>Order Items</h5>
+                    <div id="orderItems">
+                        <div class="row order-item mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Medicine</label>
+                                <select class="form-select" name="medicine_id">
+                                    <option value="">Select Medicine</option>
+                                    {% for medicine in medicines %}
+                                    <option value="{{ medicine.id }}">{{ medicine.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Quantity</label>
+                                <input type="number" class="form-control" name="quantity" min="1">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Unit Price</label>
+                                <input type="number" class="form-control" name="unit_price" step="0.01" min="0">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">&nbsp;</label>
+                                <button type="button" class="btn btn-outline-danger d-block remove-item" onclick="removeOrderItem(this)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" class="btn btn-outline-primary mb-3" onclick="addOrderItem()">
+                        <i class="fas fa-plus"></i> Add Item
+                    </button>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('orders') }}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Create Order
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function addOrderItem() {
+    const orderItems = document.getElementById('orderItems');
+    const newItem = orderItems.children[0].cloneNode(true);
+    
+    // Clear the values
+    newItem.querySelectorAll('select, input').forEach(input => {
+        input.value = '';
+    });
+    
+    orderItems.appendChild(newItem);
+}
+
+function removeOrderItem(button) {
+    const orderItems = document.getElementById('orderItems');
+    if (orderItems.children.length > 1) {
+        button.closest('.order-item').remove();
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Orders - RHU Inventory{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Orders</h1>
+    <a href="{{ url_for('add_order') }}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Create Order
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if orders %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Order #</th>
+                        <th>Supplier</th>
+                        <th>Order Date</th>
+                        <th>Total Items</th>
+                        <th>Total Amount</th>
+                        <th>Status</th>
+                        <th>Created By</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td>#{{ order.id }}</td>
+                        <td>{{ order.supplier.name }}</td>
+                        <td>{{ order.order_date.strftime('%Y-%m-%d') }}</td>
+                        <td>{{ order.total_items }}</td>
+                        <td>${{ "%.2f"|format(order.total_amount) }}</td>
+                        <td>
+                            <span class="badge status-{{ order.status }}">
+                                {{ order.status.title() }}
+                            </span>
+                        </td>
+                        <td>{{ order.creator.username }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="fas fa-shopping-cart fa-3x text-muted mb-3"></i>
+            <p class="text-muted">No orders found. <a href="{{ url_for('add_order') }}">Create your first order</a>.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

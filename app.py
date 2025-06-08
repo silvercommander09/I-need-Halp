@@ -254,6 +254,7 @@ def add_batch():
             unit_price=float(request.form['unit_price'])
         )
         db.session.add(batch)
+        db.session.flush()  # Get the batch ID
         
         # Add stock transaction
         transaction = StockTransaction(

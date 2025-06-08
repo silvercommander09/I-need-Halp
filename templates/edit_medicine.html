@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Medicine - RHU Inventory{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Edit Medicine</h1>
+    <a href="{{ url_for('inventory') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Medicines
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Medicine Name *</label>
+                        <input type="text" class="form-control" id="name" name="name" value="{{ medicine.name }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="generic_name" class="form-label">Generic Name</label>
+                        <input type="text" class="form-control" id="generic_name" name="generic_name" value="{{ medicine.generic_name or '' }}">
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="category" class="form-label">Category</label>
+                                <select class="form-select" id="category" name="category">
+                                    <option value="">Select Category</option>
+                                    <option value="Antibiotics" {{ 'selected' if medicine.category == 'Antibiotics' }}>Antibiotics</option>
+                                    <option value="Analgesics" {{ 'selected' if medicine.category == 'Analgesics' }}>Analgesics</option>
+                                    <option value="Vitamins" {{ 'selected' if medicine.category == 'Vitamins' }}>Vitamins</option>
+                                    <option value="Antacids" {{ 'selected' if medicine.category == 'Antacids' }}>Antacids</option>
+                                    <option value="Antiseptics" {{ 'selected' if medicine.category == 'Antiseptics' }}>Antiseptics</option>
+                                    <option value="Other" {{ 'selected' if medicine.category == 'Other' }}>Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="unit" class="form-label">Unit</label>
+                                <select class="form-select" id="unit" name="unit">
+                                    <option value="">Select Unit</option>
+                                    <option value="Tablets" {{ 'selected' if medicine.unit == 'Tablets' }}>Tablets</option>
+                                    <option value="Capsules" {{ 'selected' if medicine.unit == 'Capsules' }}>Capsules</option>
+                                    <option value="Bottles" {{ 'selected' if medicine.unit == 'Bottles' }}>Bottles</option>
+                                    <option value="Vials" {{ 'selected' if medicine.unit == 'Vials' }}>Vials</option>
+                                    <option value="Boxes" {{ 'selected' if medicine.unit == 'Boxes' }}>Boxes</option>
+                                    <option value="Pieces" {{ 'selected' if medicine.unit == 'Pieces' }}>Pieces</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="supplier_id" class="form-label">Supplier *</label>
+                        <select class="form-select" id="supplier_id" name="supplier_id" required>
+                            <option value="">Select Supplier</option>
+                            {% for supplier in suppliers %}
+                            <option value="{{ supplier.id }}" {{ 'selected' if supplier.id == medicine.supplier_id }}>{{ supplier.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('inventory') }}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Update Medicine
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
