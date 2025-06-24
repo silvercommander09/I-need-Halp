@@ -88,7 +88,6 @@ def login():
         username = request.form['username']
         password = request.form['password']
         user = User.query.filter_by(username=username).first()
-        
         if user and check_password_hash(user.password, password):
             login_user(user)
             return redirect(url_for('dashboard'))
@@ -107,24 +106,20 @@ def logout():
 def dashboard():
     # Get low stock items (quantity <= 10)
     low_stock = Batch.query.filter(Batch.quantity <= 10).all()
-    
     # Get items expiring in the next 30 days
     thirty_days_from_now = datetime.now().date() + timedelta(days=30)
     expiring_soon = Batch.query.filter(
         Batch.expiration_date <= thirty_days_from_now,
         Batch.expiration_date > datetime.now().date()
     ).all()
-    
     # Get recent transactions
     recent_transactions = StockTransaction.query.order_by(
         StockTransaction.transaction_date.desc()
     ).limit(10).all()
-    
     # Get total counts
     total_medicines = Medicine.query.count()
     total_suppliers = Supplier.query.count()
     pending_orders = Order.query.filter_by(status='pending').count()
-    
     return render_template('dashboard.html', 
                          low_stock=low_stock,
                          expiring_soon=expiring_soon,
@@ -154,7 +149,6 @@ def add_medicine():
         db.session.commit()
         flash('Medicine added successfully', 'success')
         return redirect(url_for('inventory'))
-    
     suppliers = Supplier.query.all()
     return render_template('add_medicine.html', suppliers=suppliers)
 
@@ -162,7 +156,6 @@ def add_medicine():
 @login_required
 def edit_medicine(id):
     medicine = Medicine.query.get_or_404(id)
-    
     if request.method == 'POST':
         medicine.name = request.form['name']
         medicine.generic_name = request.form['generic_name']
@@ -172,7 +165,6 @@ def edit_medicine(id):
         db.session.commit()
         flash('Medicine updated successfully', 'success')
         return redirect(url_for('inventory'))
-    
     suppliers = Supplier.query.all()
     return render_template('edit_medicine.html', medicine=medicine, suppliers=suppliers)
 
@@ -206,14 +198,12 @@ def add_supplier():
         db.session.commit()
         flash('Supplier added successfully', 'success')
         return redirect(url_for('suppliers'))
-    
     return render_template('add_supplier.html')
 
 @app.route('/supplier/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_supplier(id):
     supplier = Supplier.query.get_or_404(id)
-    
     if request.method == 'POST':
         supplier.name = request.form['name']
         supplier.contact_person = request.form['contact_person']
@@ -223,7 +213,6 @@ def edit_supplier(id):
         db.session.commit()
         flash('Supplier updated successfully', 'success')
         return redirect(url_for('suppliers'))
-    
     return render_template('edit_supplier.html', supplier=supplier)
 
 @app.route('/supplier/<int:id>/delete', methods=['POST'])
@@ -255,7 +244,6 @@ def add_batch():
         )
         db.session.add(batch)
         db.session.flush()  # Get the batch ID
-        
         # Add stock transaction
         transaction = StockTransaction(
             batch_id=batch.id,
@@ -265,10 +253,8 @@ def add_batch():
         )
         db.session.add(transaction)
         db.session.commit()
-        
         flash('Batch added successfully', 'success')
         return redirect(url_for('batches'))
-    
     medicines = Medicine.query.all()
     return render_template('add_batch.html', medicines=medicines)
 
@@ -288,12 +274,10 @@ def add_order():
         )
         db.session.add(order)
         db.session.flush()  # Get the order ID
-        
         # Add order items
         medicine_ids = request.form.getlist('medicine_id')
         quantities = request.form.getlist('quantity')
         unit_prices = request.form.getlist('unit_price')
-        
         for i in range(len(medicine_ids)):
             if medicine_ids[i] and quantities[i]:
                 order_item = OrderItem(
@@ -303,11 +287,9 @@ def add_order():
                     unit_price=float(unit_prices[i]) if unit_prices[i] else 0
                 )
                 db.session.add(order_item)
-        
         db.session.commit()
         flash('Order created successfully', 'success')
         return redirect(url_for('orders'))
-    
     suppliers = Supplier.query.all()
     medicines = Medicine.query.all()
     return render_template('add_order.html', suppliers=suppliers, medicines=medicines)
@@ -320,13 +302,11 @@ def reports():
         Medicine.name,
         db.func.sum(Batch.quantity).label('total_quantity')
     ).join(Batch).group_by(Medicine.id).all()
-    
     # Expiring medicines report
     thirty_days_from_now = datetime.now().date() + timedelta(days=30)
     expiring_report = Batch.query.filter(
         Batch.expiration_date <= thirty_days_from_now
     ).all()
-    
     return render_template('reports.html', 
                          stock_report=stock_report,
                          expiring_report=expiring_report)
@@ -339,7 +319,6 @@ def api_stock_levels():
         Medicine.name,
         db.func.sum(Batch.quantity).label('total_quantity')
     ).join(Batch).group_by(Medicine.id).all()
-    
     return jsonify([{
         'medicine': item.name,
         'quantity': item.total_quantity
@@ -348,7 +327,6 @@ def api_stock_levels():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-        
         # Create default admin user if it doesn't exist
         if not User.query.filter_by(username='admin').first():
             admin = User(
@@ -360,11 +338,9 @@ if __name__ == '__main__':
             db.session.add(admin)
             db.session.commit()
             print("Default admin user created (username: admin, password: admin123)")
-        
         # Start the scheduler
         try:
             scheduler.start()
         except:
             pass  # Scheduler might already be running
-    
     app.run(debug=True, port=5000)
