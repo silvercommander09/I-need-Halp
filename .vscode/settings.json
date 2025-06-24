@@ -1,0 +1,10 @@
+{
+    "sqltools.connections": [
+        {
+            "previewLimit": 50,
+            "driver": "SQLite",
+            "database": "\"C:\\Users\\Silvercommander\\Desktop\\Personal use RHU project\\I-need-Halp\\database.db\"",
+            "name": "database"
+        }
+    ]
+}
