@@ -324,6 +324,15 @@ def api_stock_levels():
         'quantity': item.total_quantity
     } for item in stock_data])
 
+@app.route('/order/<int:id>/deliver', methods=['POST'])
+@login_required
+def deliver_order(id):
+    order = Order.query.get_or_404(id)
+    order.status = 'delivered'
+    db.session.commit()
+    flash('Order marked as delivered', 'success')
+    return redirect(url_for('orders'))
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
@@ -336,8 +345,27 @@ if __name__ == '__main__':
                 email='admin@example.com'
             )
             db.session.add(admin)
-            db.session.commit()
             print("Default admin user created (username: admin, password: admin123)")
+        # Create 'asd' user if it doesn't exist
+        if not User.query.filter_by(username='Jan').first():
+            jan_user = User(
+                username='Jan',
+                password=generate_password_hash('Jan123'),
+                role='staff',  # or 'manager'
+                email='asd@example.com'
+            )
+            db.session.add(jan_user)
+            
+        if not User.query.filter_by(username='Bot').first():
+            bot_user = User(
+                username='Bot',
+                password=generate_password_hash('Bot123'),
+                role='supplier',  # or 'manager'
+                email='suplier@gmail.com'
+            )
+            db.session.add(bot_user)
+           
+        db.session.commit()
         # Start the scheduler
         try:
             scheduler.start()
