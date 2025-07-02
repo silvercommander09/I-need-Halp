@@ -128,54 +128,11 @@ def dashboard():
                          total_suppliers=total_suppliers,
                          pending_orders=pending_orders)
 
-@app.route('/inventory')
+@app.route('/orders')
 @login_required
-def inventory():
-    medicines = Medicine.query.all()
-    return render_template('inventory.html', medicines=medicines)
-
-@app.route('/medicine/add', methods=['GET', 'POST'])
-@login_required
-def add_medicine():
-    if request.method == 'POST':
-        medicine = Medicine(
-            name=request.form['name'],
-            generic_name=request.form['generic_name'],
-            category=request.form['category'],
-            unit=request.form['unit'],
-            supplier_id=request.form['supplier_id']
-        )
-        db.session.add(medicine)
-        db.session.commit()
-        flash('Medicine added successfully', 'success')
-        return redirect(url_for('inventory'))
-    suppliers = Supplier.query.all()
-    return render_template('add_medicine.html', suppliers=suppliers)
-
-@app.route('/medicine/<int:id>/edit', methods=['GET', 'POST'])
-@login_required
-def edit_medicine(id):
-    medicine = Medicine.query.get_or_404(id)
-    if request.method == 'POST':
-        medicine.name = request.form['name']
-        medicine.generic_name = request.form['generic_name']
-        medicine.category = request.form['category']
-        medicine.unit = request.form['unit']
-        medicine.supplier_id = request.form['supplier_id']
-        db.session.commit()
-        flash('Medicine updated successfully', 'success')
-        return redirect(url_for('inventory'))
-    suppliers = Supplier.query.all()
-    return render_template('edit_medicine.html', medicine=medicine, suppliers=suppliers)
-
-@app.route('/medicine/<int:id>/delete', methods=['POST'])
-@login_required
-def delete_medicine(id):
-    medicine = Medicine.query.get_or_404(id)
-    db.session.delete(medicine)
-    db.session.commit()
-    flash('Medicine deleted successfully', 'success')
-    return redirect(url_for('inventory'))
+def orders():
+    orders = Order.query.all()
+    return render_template('orders.html', orders=orders)
 
 @app.route('/suppliers')
 @login_required
@@ -183,116 +140,17 @@ def suppliers():
     suppliers = Supplier.query.all()
     return render_template('suppliers.html', suppliers=suppliers)
 
-@app.route('/supplier/add', methods=['GET', 'POST'])
+@app.route('/inventory')
 @login_required
-def add_supplier():
-    if request.method == 'POST':
-        supplier = Supplier(
-            name=request.form['name'],
-            contact_person=request.form['contact_person'],
-            phone=request.form['phone'],
-            email=request.form['email'],
-            address=request.form['address']
-        )
-        db.session.add(supplier)
-        db.session.commit()
-        flash('Supplier added successfully', 'success')
-        return redirect(url_for('suppliers'))
-    return render_template('add_supplier.html')
-
-@app.route('/supplier/<int:id>/edit', methods=['GET', 'POST'])
-@login_required
-def edit_supplier(id):
-    supplier = Supplier.query.get_or_404(id)
-    if request.method == 'POST':
-        supplier.name = request.form['name']
-        supplier.contact_person = request.form['contact_person']
-        supplier.phone = request.form['phone']
-        supplier.email = request.form['email']
-        supplier.address = request.form['address']
-        db.session.commit()
-        flash('Supplier updated successfully', 'success')
-        return redirect(url_for('suppliers'))
-    return render_template('edit_supplier.html', supplier=supplier)
-
-@app.route('/supplier/<int:id>/delete', methods=['POST'])
-@login_required
-def delete_supplier(id):
-    supplier = Supplier.query.get_or_404(id)
-    db.session.delete(supplier)
-    db.session.commit()
-    flash('Supplier deleted successfully', 'success')
-    return redirect(url_for('suppliers'))
+def inventory():
+    medicines = Medicine.query.all()
+    return render_template('inventory.html', medicines=medicines)
 
 @app.route('/batches')
 @login_required
 def batches():
     batches = Batch.query.all()
     return render_template('batches.html', batches=batches)
-
-@app.route('/batch/add', methods=['GET', 'POST'])
-@login_required
-def add_batch():
-    if request.method == 'POST':
-        batch = Batch(
-            batch_number=request.form['batch_number'],
-            medicine_id=request.form['medicine_id'],
-            quantity=request.form['quantity'],
-            expiration_date=datetime.strptime(request.form['expiration_date'], '%Y-%m-%d').date(),
-            manufacturing_date=datetime.strptime(request.form['manufacturing_date'], '%Y-%m-%d').date(),
-            unit_price=float(request.form['unit_price'])
-        )
-        db.session.add(batch)
-        db.session.flush()  # Get the batch ID
-        # Add stock transaction
-        transaction = StockTransaction(
-            batch_id=batch.id,
-            transaction_type='in',
-            quantity=batch.quantity,
-            performed_by=current_user.id
-        )
-        db.session.add(transaction)
-        db.session.commit()
-        flash('Batch added successfully', 'success')
-        return redirect(url_for('batches'))
-    medicines = Medicine.query.all()
-    return render_template('add_batch.html', medicines=medicines)
-
-@app.route('/orders')
-@login_required
-def orders():
-    orders = Order.query.all()
-    return render_template('orders.html', orders=orders)
-
-@app.route('/order/add', methods=['GET', 'POST'])
-@login_required
-def add_order():
-    if request.method == 'POST':
-        order = Order(
-            supplier_id=request.form['supplier_id'],
-            created_by=current_user.id
-        )
-        db.session.add(order)
-        db.session.flush()  # Get the order ID
-        # Add order items
-        medicine_ids = request.form.getlist('medicine_id')
-        quantities = request.form.getlist('quantity')
-        unit_prices = request.form.getlist('unit_price')
-        for i in range(len(medicine_ids)):
-            if medicine_ids[i] and quantities[i]:
-                order_item = OrderItem(
-                    order_id=order.id,
-                    medicine_id=medicine_ids[i],
-                    quantity=int(quantities[i]),
-                    unit_price=float(unit_prices[i]) if unit_prices[i] else 0
-                )
-                db.session.add(order_item)
-        db.session.commit()
-        flash('Order created successfully', 'success')
-        return redirect(url_for('orders'))
-    suppliers = Supplier.query.all()
-    medicines = Medicine.query.all()
-    return render_template('add_order.html', suppliers=suppliers, medicines=medicines)
 
 @app.route('/reports')
 @login_required
@@ -332,6 +190,50 @@ def deliver_order(id):
     db.session.commit()
     flash('Order marked as delivered', 'success')
     return redirect(url_for('orders'))
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        email = request.form['email']
+        role = request.form['role']
+
+        # Check if the username or email already exists
+        existing_user = User.query.filter(
+            (User.username == username) | (User.email == email)
+        ).first()
+        if existing_user:
+            flash('Username or email already exists', 'error')
+            return redirect(url_for('register'))
+
+        # Create a new user
+        new_user = User(
+            username=username,
+            password=generate_password_hash(password),
+            email=email,
+            role=role
+        )
+        db.session.add(new_user)
+        db.session.commit()
+
+        flash('Registration successful. You can now log in.', 'success')
+        return redirect(url_for('login'))
+
+    return render_template('register.html')
+
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form['email']
+        user = User.query.filter_by(email=email).first()
+        if user:
+            # In a real app, send a reset email here
+            flash('If this email is registered, you will receive instructions to reset your password.', 'info')
+        else:
+            flash('If this email is registered, you will receive instructions to reset your password.', 'info')
+        return redirect(url_for('login'))
+    return render_template('forgot_password.html')
 
 if __name__ == '__main__':
     with app.app_context():

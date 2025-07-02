@@ -3,6 +3,7 @@
 {% block title %}Reports - RHU Inventory{% endblock %}
 
 {% block content %}
+{% if user.is_authenticated and (user.role == 'admin' or user.role == 'employee') %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2">Reports</h1>
 </div>
@@ -92,4 +93,7 @@
         </div>
     </div>
 </div>
+{% else %}
+<p>You do not have permission to access this page.</p>
+{% endif %}
 {% endblock %}

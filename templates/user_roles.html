@@ -1,0 +1,20 @@
+{% if user.is_authenticated %}
+    {% if user.role == 'admin' %}
+        <!-- Admin-only content -->
+        <h2>Admin Dashboard</h2>
+        <!-- ...admin features... -->
+    {% elif user.role == 'sub-admin' %}
+        <!-- Sub-admin-only content -->
+        <h2>Sub-Admin Dashboard</h2>
+        <!-- ...sub-admin features... -->
+    {% elif user.role == 'employee' %}
+        <!-- Employee-only content -->
+        <h2>Employee Dashboard</h2>
+        <!-- ...employee features... -->
+    {% else %}
+        <!-- Content for users with no specific role -->
+        <p>You do not have access to this section.</p>
+    {% endif %}
+{% else %}
+    <p>Please log in to access the system.</p>
+{% endif %}

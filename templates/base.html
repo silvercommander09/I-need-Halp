@@ -60,7 +60,12 @@
                         <i class="fas fa-user"></i> {{ current_user.username }}
                     </a>
                     <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="#"><i class="fas fa-user-cog"></i> Profile</a></li>
+                        <li>
+                            <!-- Trigger profile modal -->
+                            <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#profileModal">
+                                <i class="fas fa-user-cog"></i> Profile
+                            </a>
+                        </li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
                     </ul>
@@ -130,7 +135,52 @@
         </div>
     </div>
 
+    <!-- Profile Modal -->
+    {% if current_user.is_authenticated %}
+    <div class="modal fade" id="profileModal" tabindex="-1" aria-labelledby="profileModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title" id="profileModalLabel"><i class="fas fa-user"></i> Profile</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <ul class="list-group list-group-flush">
+              <li class="list-group-item"><strong>Username:</strong> {{ current_user.username }}</li>
+              <li class="list-group-item"><strong>Email:</strong> {{ current_user.email }}</li>
+              <li class="list-group-item"><strong>Role:</strong> {{ current_user.role|capitalize }}</li>
+            </ul>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     {% block scripts %}{% endblock %}
+
+    {% if current_user.is_authenticated %}
+        {% if current_user.role == 'admin' %}
+            <!-- Admin: Access to all controls -->
+            <a href="{{ edit_medicine_url }}">Edit Medicine</a>
+            <a href="{{ edit_supplier_url }}">Edit Supplier</a>
+            <a href="{{ orders_url }}">Orders</a>
+            <a href="{{ reports_url }}">Reports</a>
+            <!-- ...other admin controls... -->
+        {% elif current_user.role == 'sub-admin' %}
+            <!-- Sub-admin: Limited controls -->
+            <a href="{{ edit_medicine_url }}">Edit Medicine</a>
+            <a href="{{ edit_supplier_url }}">Edit Supplier</a>
+            <a href="{{ orders_url }}">Orders</a>
+            <!-- ...other sub-admin controls... -->
+        {% elif current_user.role == 'employee' %}
+            <!-- Employee: Only orders and reports -->
+            <a href="{{ orders_url }}">Orders</a>
+            <a href="{{ reports_url }}">Reports</a>
+        {% endif %}
+    {% endif %}
 </body>
 </html>
