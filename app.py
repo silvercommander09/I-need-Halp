@@ -155,6 +155,10 @@ def batches():
 @app.route('/reports')
 @login_required
 def reports():
+    # Allow admin, sub-admin, and employee to access reports
+    if current_user.role not in ['admin', 'sub-admin', 'employee']:
+        flash('You do not have permission to access this page.', 'danger')
+        return redirect(url_for('dashboard'))
     # Stock levels report
     stock_report = db.session.query(
         Medicine.name,
@@ -234,6 +238,181 @@ def forgot_password():
             flash('If this email is registered, you will receive instructions to reset your password.', 'info')
         return redirect(url_for('login'))
     return render_template('forgot_password.html')
+
+@app.route('/medicine/add', methods=['GET', 'POST'])
+@login_required
+def add_medicine():
+    if request.method == 'POST':
+        medicine = Medicine(
+            name=request.form['name'],
+            generic_name=request.form['generic_name'],
+            category=request.form['category'],
+            unit=request.form['unit'],
+            supplier_id=request.form['supplier_id']
+        )
+        db.session.add(medicine)
+        db.session.commit()
+        flash('Medicine added successfully', 'success')
+        return redirect(url_for('inventory'))
+    suppliers = Supplier.query.all()
+    return render_template('add_medicine.html', suppliers=suppliers)
+
+@app.route('/medicine/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_medicine(id):
+    # Only admin and sub-admin can edit, employee cannot
+    if current_user.role not in ['admin', 'sub-admin']:
+        flash('You do not have permission to edit medicines.', 'danger')
+        return redirect(url_for('inventory'))
+    medicine = Medicine.query.get_or_404(id)
+    if request.method == 'POST':
+        medicine.name = request.form['name']
+        medicine.generic_name = request.form['generic_name']
+        medicine.category = request.form['category']
+        medicine.unit = request.form['unit']
+        medicine.supplier_id = request.form['supplier_id']
+        db.session.commit()
+        flash('Medicine updated successfully', 'success')
+        return redirect(url_for('inventory'))
+    suppliers = Supplier.query.all()
+    return render_template('edit_medicine.html', medicine=medicine, suppliers=suppliers)
+
+@app.route('/medicine/<int:id>/delete', methods=['POST'])
+@login_required
+def delete_medicine(id):
+    # Only admin can delete, sub-admin cannot
+    if current_user.role != 'admin':
+        flash('You do not have permission to delete medicines.', 'danger')
+        return redirect(url_for('inventory'))
+    medicine = Medicine.query.get_or_404(id)
+    db.session.delete(medicine)
+    db.session.commit()
+    flash('Medicine deleted successfully', 'success')
+    return redirect(url_for('inventory'))
+
+@app.route('/batch/add', methods=['GET', 'POST'])
+@login_required
+def add_batch():
+    if request.method == 'POST':
+        batch = Batch(
+            batch_number=request.form['batch_number'],
+            medicine_id=request.form['medicine_id'],
+            quantity=request.form['quantity'],
+            expiration_date=datetime.strptime(request.form['expiration_date'], '%Y-%m-%d').date(),
+            manufacturing_date=datetime.strptime(request.form['manufacturing_date'], '%Y-%m-%d').date(),
+            unit_price=float(request.form['unit_price'])
+        )
+        db.session.add(batch)
+        db.session.commit()
+        flash('Batch added successfully', 'success')
+        return redirect(url_for('batches'))
+    medicines = Medicine.query.all()
+    return render_template('add_batch.html', medicines=medicines)
+
+@app.route('/batch/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_batch(id):
+    batch = Batch.query.get_or_404(id)
+    if request.method == 'POST':
+        batch.batch_number = request.form['batch_number']
+        batch.medicine_id = request.form['medicine_id']
+        batch.quantity = request.form['quantity']
+        batch.expiration_date = datetime.strptime(request.form['expiration_date'], '%Y-%m-%d').date()
+        batch.manufacturing_date = datetime.strptime(request.form['manufacturing_date'], '%Y-%m-%d').date()
+        batch.unit_price = float(request.form['unit_price'])
+        db.session.commit()
+        flash('Batch updated successfully', 'success')
+        return redirect(url_for('batches'))
+    medicines = Medicine.query.all()
+    return render_template('edit_batch.html', batch=batch, medicines=medicines)
+
+@app.route('/batch/<int:id>/delete', methods=['POST'])
+@login_required
+def delete_batch(id):
+    batch = Batch.query.get_or_404(id)
+    db.session.delete(batch)
+    db.session.commit()
+    flash('Batch deleted successfully', 'success')
+    return redirect(url_for('batches'))
+
+@app.route('/supplier/add', methods=['GET', 'POST'])
+@login_required
+def add_supplier():
+    if request.method == 'POST':
+        supplier = Supplier(
+            name=request.form['name'],
+            contact_person=request.form['contact_person'],
+            phone=request.form['phone'],
+            email=request.form['email'],
+            address=request.form['address']
+        )
+        db.session.add(supplier)
+        db.session.commit()
+        flash('Supplier added successfully', 'success')
+        return redirect(url_for('suppliers'))
+    return render_template('add_supplier.html')
+
+@app.route('/supplier/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_supplier(id):
+    # Only admin and sub-admin can edit, employee cannot
+    if current_user.role not in ['admin', 'sub-admin']:
+        flash('You do not have permission to edit suppliers.', 'danger')
+        return redirect(url_for('suppliers'))
+    supplier = Supplier.query.get_or_404(id)
+    if request.method == 'POST':
+        supplier.name = request.form['name']
+        supplier.contact_person = request.form['contact_person']
+        supplier.phone = request.form['phone']
+        supplier.email = request.form['email']
+        supplier.address = request.form['address']
+        db.session.commit()
+        flash('Supplier updated successfully', 'success')
+        return redirect(url_for('suppliers'))
+    return render_template('edit_supplier.html', supplier=supplier)
+
+@app.route('/supplier/<int:id>/delete', methods=['POST'])
+@login_required
+def delete_supplier(id):
+    # Only admin can delete, sub-admin cannot
+    if current_user.role != 'admin':
+        flash('You do not have permission to delete suppliers.', 'danger')
+        return redirect(url_for('suppliers'))
+    supplier = Supplier.query.get_or_404(id)
+    db.session.delete(supplier)
+    db.session.commit()
+    flash('Supplier deleted successfully', 'success')
+    return redirect(url_for('suppliers'))
+
+@app.route('/order/add', methods=['GET', 'POST'])
+@login_required
+def add_order():
+    if request.method == 'POST':
+        order = Order(
+            supplier_id=request.form['supplier_id'],
+            created_by=current_user.id
+        )
+        db.session.add(order)
+        db.session.flush()  # Get the order ID
+        # Add order items
+        medicine_ids = request.form.getlist('medicine_id')
+        quantities = request.form.getlist('quantity')
+        unit_prices = request.form.getlist('unit_price')
+        for i in range(len(medicine_ids)):
+            if medicine_ids[i] and quantities[i]:
+                order_item = OrderItem(
+                    order_id=order.id,
+                    medicine_id=medicine_ids[i],
+                    quantity=int(quantities[i]),
+                    unit_price=float(unit_prices[i]) if unit_prices[i] else 0
+                )
+                db.session.add(order_item)
+        db.session.commit()
+        flash('Order created successfully', 'success')
+        return redirect(url_for('orders'))
+    suppliers = Supplier.query.all()
+    medicines = Medicine.query.all()
+    return render_template('add_order.html', suppliers=suppliers, medicines=medicines)
 
 if __name__ == '__main__':
     with app.app_context():

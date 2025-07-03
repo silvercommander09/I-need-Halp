@@ -3,7 +3,7 @@
 {% block title %}Edit Medicine - RHU Inventory{% endblock %}
 
 {% block content %}
-{% if user.is_authenticated and (user.role == 'admin' or user.role == 'sub-admin') %}
+{% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'sub-admin') %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2">Edit Medicine</h1>
     <a href="{{ url_for('inventory') }}" class="btn btn-secondary">
@@ -79,6 +79,6 @@
     </div>
 </div>
 {% else %}
-    <p>You do not have permission to access this page.</p>
+    <div class="alert alert-danger mt-4">You do not have permission to access this page.</div>
 {% endif %}
 {% endblock %}

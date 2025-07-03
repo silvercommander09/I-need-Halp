@@ -3,7 +3,7 @@
 {% block title %}Orders - RHU Inventory{% endblock %}
 
 {% block content %}
-{% if user.is_authenticated and (user.role == 'admin' or user.role == 'sub-admin' or user.role == 'employee') %}
+{% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'sub-admin' or current_user.role == 'employee') %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2">Orders</h1>
     <a href="{{ url_for('add_order') }}" class="btn btn-primary">
