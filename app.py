@@ -422,7 +422,7 @@ if __name__ == '__main__':
             admin = User(
                 username='admin',
                 password=generate_password_hash('admin123'),
-                role='manager',
+                role='admin',
                 email='admin@example.com'
             )
             db.session.add(admin)
@@ -432,7 +432,7 @@ if __name__ == '__main__':
             jan_user = User(
                 username='Jan',
                 password=generate_password_hash('Jan123'),
-                role='staff',  # or 'manager'
+                role='employee',  # or 'manager'
                 email='asd@example.com'
             )
             db.session.add(jan_user)
@@ -441,8 +441,8 @@ if __name__ == '__main__':
             bot_user = User(
                 username='Bot',
                 password=generate_password_hash('Bot123'),
-                role='supplier',  # or 'manager'
-                email='suplier@gmail.com'
+                role='sub-admin',  # or 'manager'
+                email='frafsd@gmail.com'
             )
             db.session.add(bot_user)
            
