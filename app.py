@@ -285,9 +285,11 @@ def delete_medicine(id):
         flash('You do not have permission to delete medicines.', 'danger')
         return redirect(url_for('inventory'))
     medicine = Medicine.query.get_or_404(id)
+    # Delete all batches related to this medicine first to avoid integrity error
+    Batch.query.filter_by(medicine_id=medicine.id).delete()
     db.session.delete(medicine)
     db.session.commit()
-    flash('Medicine deleted successfully', 'success')
+    flash('Medicine and its related batches deleted successfully', 'success')
     return redirect(url_for('inventory'))
 
 @app.route('/batch/add', methods=['GET', 'POST'])
