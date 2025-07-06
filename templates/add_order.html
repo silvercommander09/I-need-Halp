@@ -28,24 +28,36 @@
                     <h5>Order Items</h5>
                     <div id="orderItems">
                         <div class="row order-item mb-3">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label">Medicine</label>
-                                <select class="form-select" name="medicine_id">
+                                <select class="form-select" name="medicine_id[]" required>
                                     <option value="">Select Medicine</option>
                                     {% for medicine in medicines %}
                                     <option value="{{ medicine.id }}">{{ medicine.name }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <label class="form-label">Quantity</label>
-                                <input type="number" class="form-control" name="quantity" min="1">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Unit Price</label>
-                                <input type="number" class="form-control" name="unit_price" step="0.01" min="0">
+                                <input type="number" class="form-control" name="quantity[]" min="1" required>
                             </div>
                             <div class="col-md-2">
+                                <label class="form-label">Unit Price</label>
+                                <input type="number" class="form-control" name="unit_price[]" step="0.01" min="0" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Batch Number</label>
+                                <input type="text" class="form-control" name="batch_number[]" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Expiration Date</label>
+                                <input type="date" class="form-control" name="expiration_date[]" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Manufacturing Date</label>
+                                <input type="date" class="form-control" name="manufacturing_date[]" required>
+                            </div>
+                            <div class="col-md-1">
                                 <label class="form-label">&nbsp;</label>
                                 <button type="button" class="btn btn-outline-danger d-block remove-item" onclick="removeOrderItem(this)">
                                     <i class="fas fa-trash"></i>
@@ -60,9 +72,9 @@
                     
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                         <a href="{{ url_for('orders') }}" class="btn btn-secondary">Cancel</a>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> Create Order
-                        </button>
+                    <button type="submit" class="btn btn-primary" onclick="this.disabled=true; this.form.submit();">
+                        <i class="fas fa-save"></i> Create Order
+                    </button>
                     </div>
                 </form>
             </div>

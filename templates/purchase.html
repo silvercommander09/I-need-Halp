@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Outgoing Purchases</h2>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Medicine</th>
+            <th>Batch</th>
+            <th>Quantity</th>
+            <th>By</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for tx in purchases %}
+        <tr>
+            <td>{{ tx.transaction_date.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td>{{ tx.batch.medicine.name if tx.batch and tx.batch.medicine else "N/A" }}</td>
+            <td>{{ tx.batch.batch_number if tx.batch else "N/A" }}</td>
+            <td>{{ tx.quantity }}</td>
+            <td>
+                {% if tx.user %}
+                    {{ tx.user.username }} ({{ tx.user.role }})
+                {% else %}
+                    {{ tx.performed_by }}
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

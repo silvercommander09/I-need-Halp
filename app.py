@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, Supplier, Medicine, Batch, Order, OrderItem, StockTransaction
@@ -9,6 +9,14 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
+from sqlalchemy import func
+from io import BytesIO
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+
+# To fix potential errors, install the reportlab package:
+# Run this command in your terminal:
+# pip install reportlab
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key_change_in_production'
@@ -26,17 +34,18 @@ def load_user(user_id):
 
 def check_expiring_medicines():
     """Check for medicines expiring in the next 30 days"""
-    thirty_days_from_now = datetime.now().date() + timedelta(days=30)
-    expiring_batches = Batch.query.filter(
-        Batch.expiration_date <= thirty_days_from_now,
-        Batch.expiration_date > datetime.now().date()
-    ).all()
+    with app.app_context():
+        thirty_days_from_now = datetime.now().date() + timedelta(days=30)
+        expiring_batches = Batch.query.filter(
+            Batch.expiration_date <= thirty_days_from_now,
+            Batch.expiration_date > datetime.now().date()
+        ).all()
 
-    if expiring_batches:
-        # Send email to managers
-        managers = User.query.filter_by(role='manager').all()
-        for manager in managers:
-            send_expiration_alert(manager.email, expiring_batches)
+        if expiring_batches:
+            # Send email to managers
+            managers = User.query.filter_by(role='manager').all()
+            for manager in managers:
+                send_expiration_alert(manager.email, expiring_batches)
 
 def send_expiration_alert(email, batches):
     """Send email alert for expiring medicines"""
@@ -120,7 +129,7 @@ def dashboard():
     total_medicines = Medicine.query.count()
     total_suppliers = Supplier.query.count()
     pending_orders = Order.query.filter_by(status='pending').count()
-    return render_template('dashboard.html', 
+    return render_template('dashboard.html',
                          low_stock=low_stock,
                          expiring_soon=expiring_soon,
                          recent_transactions=recent_transactions,
@@ -131,8 +140,12 @@ def dashboard():
 @app.route('/orders')
 @login_required
 def orders():
-    orders = Order.query.all()
-    return render_template('orders.html', orders=orders)
+    orders = Order.query.order_by(Order.order_date.desc()).all()
+
+    # Correctly filter medicines that have a total quantity greater than 0
+    medicines = db.session.query(Medicine).join(Batch).group_by(Medicine.id).having(func.sum(Batch.quantity) > 0).all()
+
+    return render_template('orders.html', orders=orders, medicines=medicines)
 
 @app.route('/suppliers')
 @login_required
@@ -162,14 +175,14 @@ def reports():
     # Stock levels report
     stock_report = db.session.query(
         Medicine.name,
-        db.func.sum(Batch.quantity).label('total_quantity')
-    ).join(Batch).group_by(Medicine.id).all()
+        func.sum(Batch.quantity).label('total_quantity')
+    ).join(Batch).group_by(Medicine.name).all()
     # Expiring medicines report
     thirty_days_from_now = datetime.now().date() + timedelta(days=30)
     expiring_report = Batch.query.filter(
         Batch.expiration_date <= thirty_days_from_now
     ).all()
-    return render_template('reports.html', 
+    return render_template('reports.html',
                          stock_report=stock_report,
                          expiring_report=expiring_report)
 
@@ -179,8 +192,8 @@ def api_stock_levels():
     """API endpoint for stock levels data"""
     stock_data = db.session.query(
         Medicine.name,
-        db.func.sum(Batch.quantity).label('total_quantity')
-    ).join(Batch).group_by(Medicine.id).all()
+        func.sum(Batch.quantity).label('total_quantity')
+    ).join(Batch).group_by(Medicine.name).all()
     return jsonify([{
         'medicine': item.name,
         'quantity': item.total_quantity
@@ -193,6 +206,117 @@ def deliver_order(id):
     order.status = 'delivered'
     db.session.commit()
     flash('Order marked as delivered', 'success')
+    return redirect(url_for('orders'))
+
+@app.route('/order/<int:id>/process', methods=['POST'])
+@login_required
+def process_order(id):
+    # Only admin and sub-admin can process orders
+    if current_user.role not in ['admin', 'sub-admin']:
+        flash('You do not have permission to process orders.', 'danger')
+        return redirect(url_for('orders'))
+    order = Order.query.get_or_404(id)
+    if order.status != 'pending':
+        flash('Order is already processed.', 'warning')
+        return redirect(url_for('orders'))
+    # Mark order as delivered
+    order.status = 'delivered'
+
+    # Add to StockTransaction for each item in the order
+    for item in order.items:
+        # Find a batch for this medicine or create a new one (simple logic)
+        batch = Batch.query.filter_by(medicine_id=item.medicine_id).order_by(Batch.expiration_date.desc()).first()
+        if batch and not batch.is_expired:
+            batch.quantity += item.quantity
+        else:
+            # If no batch exists or all are expired, create a new batch
+            batch = Batch(
+                batch_number=f"ORDER-{order.id}-{item.medicine_id}",
+                medicine_id=item.medicine_id,
+                quantity=item.quantity,
+                expiration_date=datetime.now().date() + timedelta(days=365),
+                manufacturing_date=datetime.now().date(),
+                unit_price=item.unit_price
+            )
+            db.session.add(batch)
+
+        # Record StockTransaction
+        transaction = StockTransaction(
+            batch_id=batch.id,
+            transaction_type='in',
+            quantity=item.quantity, # FIX: Changed from 'dispense_from_batch' to 'item.quantity'
+            performed_by=current_user.id,
+            notes=f"From Order #{order.id}"
+        )
+        db.session.add(transaction)
+
+    db.session.commit()
+    flash('Order processed and stock updated. Transactions recorded.', 'success')
+    return redirect(url_for('orders'))
+
+@app.route('/order/<int:id>/cancel', methods=['POST'])
+@login_required
+def cancel_order(id):
+    # Only admin can cancel orders
+    if current_user.role != 'admin':
+        flash('You do not have permission to cancel orders.', 'danger')
+        return redirect(url_for('orders'))
+
+    order = Order.query.get_or_404(id)
+    if order.status == 'pending':
+        order.status = 'cancelled'
+        db.session.commit()
+        flash('Order has been successfully cancelled.', 'success')
+    else:
+        flash('Only pending orders can be cancelled.', 'warning')
+
+    return redirect(url_for('orders'))
+
+@app.route('/dispense', methods=['POST'])
+@login_required
+def process_dispense():
+    medicine_ids = request.form.getlist('medicine_id[]')
+    quantities = request.form.getlist('quantity[]')
+
+    for i in range(len(medicine_ids)):
+        if not (medicine_ids[i] and quantities[i]):
+            continue
+
+        medicine_id = int(medicine_ids[i])
+        quantity_to_dispense = int(quantities[i])
+
+        medicine = Medicine.query.get_or_404(medicine_id)
+
+        if medicine.total_quantity < quantity_to_dispense:
+            flash(f'Not enough stock for {medicine.name}. Available: {medicine.total_quantity}, Requested: {quantity_to_dispense}', 'danger')
+            return redirect(url_for('orders'))
+
+        # Dispense from batches, oldest first
+        batches = sorted(medicine.available_batches, key=lambda b: b.expiration_date)
+
+        temp_qty_to_dispense = quantity_to_dispense
+        for batch in batches:
+            if temp_qty_to_dispense == 0:
+                break
+
+            dispense_from_batch = min(temp_qty_to_dispense, batch.quantity)
+
+            if dispense_from_batch > 0:
+                batch.quantity -= dispense_from_batch
+                temp_qty_to_dispense -= dispense_from_batch
+
+                # Record transaction
+                transaction = StockTransaction(
+                    batch_id=batch.id,
+                    transaction_type='out',
+                    quantity=dispense_from_batch,
+                    performed_by=current_user.id,
+                    notes="Dispensed to patient"
+                )
+                db.session.add(transaction)
+
+    db.session.commit()
+    flash('Medicines dispensed successfully.', 'success')
     return redirect(url_for('orders'))
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -285,11 +409,13 @@ def delete_medicine(id):
         flash('You do not have permission to delete medicines.', 'danger')
         return redirect(url_for('inventory'))
     medicine = Medicine.query.get_or_404(id)
-    # Delete all batches related to this medicine first to avoid integrity error
+    # Delete all order items related to this medicine first to avoid integrity error
+    OrderItem.query.filter_by(medicine_id=medicine.id).delete()
+    # Delete all batches related to this medicine
     Batch.query.filter_by(medicine_id=medicine.id).delete()
     db.session.delete(medicine)
     db.session.commit()
-    flash('Medicine and its related batches deleted successfully', 'success')
+    flash('Medicine and its related batches and order items deleted successfully', 'success')
     return redirect(url_for('inventory'))
 
 @app.route('/batch/add', methods=['GET', 'POST'])
@@ -390,31 +516,127 @@ def delete_supplier(id):
 @login_required
 def add_order():
     if request.method == 'POST':
-        order = Order(
+        # Prevent double submission by checking for recent similar orders
+        last_order = Order.query.filter_by(
             supplier_id=request.form['supplier_id'],
             created_by=current_user.id
+        ).order_by(Order.order_date.desc()).first()
+
+        if last_order and (datetime.now() - last_order.order_date).total_seconds() < 5:
+            flash('This order might have been submitted already. Please check the orders list.', 'warning')
+            return redirect(url_for('orders'))
+
+        order = Order(
+            supplier_id=request.form['supplier_id'],
+            created_by=current_user.id,
+            status='pending'  # New orders are pending by default
         )
         db.session.add(order)
         db.session.flush()  # Get the order ID
-        # Add order items
-        medicine_ids = request.form.getlist('medicine_id')
-        quantities = request.form.getlist('quantity')
-        unit_prices = request.form.getlist('unit_price')
+
+        medicine_ids = request.form.getlist('medicine_id[]')
+        quantities = request.form.getlist('quantity[]')
+        unit_prices = request.form.getlist('unit_price[]')
+
         for i in range(len(medicine_ids)):
             if medicine_ids[i] and quantities[i]:
+                # Create OrderItem
                 order_item = OrderItem(
                     order_id=order.id,
                     medicine_id=medicine_ids[i],
                     quantity=int(quantities[i]),
-                    unit_price=float(unit_prices[i]) if unit_prices[i] else 0
+                    unit_price=float(unit_prices[i]) if unit_prices[i] else 0.0
                 )
                 db.session.add(order_item)
+
         db.session.commit()
-        flash('Order created successfully', 'success')
+        flash('Order created successfully.', 'success')
         return redirect(url_for('orders'))
     suppliers = Supplier.query.all()
     medicines = Medicine.query.all()
     return render_template('add_order.html', suppliers=suppliers, medicines=medicines)
+
+@app.route('/download-purchase-history', methods=['GET'])
+@login_required
+def download_purchase_history():
+    # Get filter from query string: 'today' or 'all'
+    filter_type = request.args.get('filter', 'all')
+    query = StockTransaction.query.order_by(StockTransaction.transaction_date.desc())
+    if filter_type == 'today':
+        today = datetime.now().date()
+        query = query.filter(func.date(StockTransaction.transaction_date) == today)
+    transactions = query.all()
+
+    # Generate PDF
+    buffer = BytesIO()
+    p = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+    y = height - 40
+    p.setFont("Helvetica-Bold", 16)
+    p.drawString(40, y, "Purchase History" + (" (Today)" if filter_type == "today" else " (All)"))
+    y -= 30
+    p.setFont("Helvetica", 10)
+    p.drawString(40, y, "Date")
+    p.drawString(120, y, "Medicine")
+    p.drawString(250, y, "Batch")
+    p.drawString(320, y, "Type")
+    p.drawString(370, y, "Qty")
+    p.drawString(410, y, "By")
+    p.drawString(470, y, "Role")
+    y -= 15
+    p.line(40, y, width - 40, y)
+    y -= 15
+
+    for tx in transactions:
+        if y < 60:
+            p.showPage()
+            y = height - 40
+        p.drawString(40, y, tx.transaction_date.strftime('%Y-%m-%d %H:%M'))
+        p.drawString(120, y, tx.batch.medicine.name if tx.batch and tx.batch.medicine else "N/A")
+        p.drawString(250, y, tx.batch.batch_number if tx.batch else "N/A")
+        p.drawString(320, y, tx.transaction_type)
+        p.drawString(370, y, str(tx.quantity))
+        username = tx.user.username if tx.user else str(tx.performed_by)
+        role = tx.user.role if tx.user else "N/A"
+        p.drawString(410, y, username)
+        p.drawString(470, y, role)
+        y -= 15
+
+    p.save()
+    buffer.seek(0)
+    filename = f"purchase_history_{filter_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
+
+@app.route('/clear-transactions', methods=['POST'])
+@login_required
+def clear_transactions():
+    # Only admin can clear all transactions
+    if current_user.role != 'admin':
+        flash('You do not have permission to clear transactions.', 'danger')
+        return redirect(url_for('dashboard'))
+    StockTransaction.query.delete()
+    db.session.commit()
+    flash('All transaction history cleared.', 'success')
+    return redirect(url_for('dashboard'))
+
+@app.route('/clear-orders', methods=['POST'])
+@login_required
+def clear_orders():
+    # Only admin can clear all orders
+    if current_user.role != 'admin':
+        flash('You do not have permission to clear orders.', 'danger')
+        return redirect(url_for('orders'))
+    # Delete all order items first to avoid integrity errors
+    OrderItem.query.delete()
+    # Delete all orders
+    Order.query.delete()
+    db.session.commit()
+    flash('All orders and their items have been cleared.', 'success')
+    return redirect(url_for('orders'))
+
+# To fix this error, install the reportlab package:
+# Run this command in your terminal:
+# pip install reportlab
 
 if __name__ == '__main__':
     with app.app_context():
@@ -429,29 +651,31 @@ if __name__ == '__main__':
             )
             db.session.add(admin)
             print("Default admin user created (username: admin, password: admin123)")
-        # Create 'asd' user if it doesn't exist
+        # Create 'Jan' user if it doesn't exist
         if not User.query.filter_by(username='Jan').first():
             jan_user = User(
                 username='Jan',
                 password=generate_password_hash('Jan123'),
-                role='employee',  # or 'manager'
+                role='employee',
                 email='asd@example.com'
             )
             db.session.add(jan_user)
-            
+
         if not User.query.filter_by(username='Bot').first():
             bot_user = User(
                 username='Bot',
                 password=generate_password_hash('Bot123'),
-                role='sub-admin',  # or 'manager'
+                role='sub-admin',
                 email='frafsd@gmail.com'
             )
             db.session.add(bot_user)
-           
+
         db.session.commit()
         # Start the scheduler
-        try:
-            scheduler.start()
-        except:
-            pass  # Scheduler might already be running
+        if not scheduler.running:
+            try:
+                scheduler.start()
+            except Exception as e:
+                print(f"Error starting scheduler: {e}")
+                pass
     app.run(debug=True, port=5000)

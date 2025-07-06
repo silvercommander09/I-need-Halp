@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Dispense Medicine - RHU Inventory{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Dispense Medicine</h1>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-10">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" id="dispenseForm">
+                    <h5>Items to Dispense</h5>
+                    <div id="dispenseItems">
+                        <div class="row dispense-item mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Medicine</label>
+                                <select class="form-select" name="medicine_id[]" required>
+                                    <option value="">Select Medicine</option>
+                                    {% for medicine in medicines %}
+                                    <option value="{{ medicine.id }}">{{ medicine.name }} (Current Stock: {{ medicine.quantity }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Quantity</label>
+                                <input type="number" class="form-control" name="quantity[]" min="1" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">&nbsp;</label>
+                                <button type="button" class="btn btn-outline-danger d-block remove-item" onclick="removeDispenseItem(this)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" class="btn btn-outline-primary mb-3" onclick="addDispenseItem()">
+                        <i class="fas fa-plus"></i> Add Item
+                    </button>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Dispense Medicine
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function addDispenseItem() {
+    const dispenseItems = document.getElementById('dispenseItems');
+    const newItem = dispenseItems.children[0].cloneNode(true);
+    
+    // Clear the values
+    newItem.querySelectorAll('select, input').forEach(input => {
+        input.value = '';
+    });
+    
+    dispenseItems.appendChild(newItem);
+}
+
+function removeDispenseItem(button) {
+    const dispenseItems = document.getElementById('dispenseItems');
+    if (dispenseItems.children.length > 1) {
+        button.closest('.dispense-item').remove();
+    }
+}
+</script>
+{% endblock %}
