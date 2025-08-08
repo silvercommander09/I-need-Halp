@@ -14,9 +14,8 @@ from io import BytesIO
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 
-# To fix potential errors, install the reportlab package:
-# Run this command in your terminal:
-# pip install reportlab
+# Ensure all required packages are installed:
+# pip install flask flask-login sqlalchemy apscheduler reportlab
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key_change_in_production'
@@ -774,11 +773,10 @@ if __name__ == '__main__':
             db.session.add(bot_user)
 
         db.session.commit()
-        # Start the scheduler
-        if not scheduler.running:
-            try:
+        # Start the scheduler only if not already running
+        try:
+            if not getattr(scheduler, 'running', False):
                 scheduler.start()
-            except Exception as e:
-                print(f"Error starting scheduler: {e}")
-                pass
+        except Exception as e:
+            print(f"Error starting scheduler: {e}")
     app.run(debug=True, port=5000)
