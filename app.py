@@ -567,40 +567,143 @@ def download_purchase_history():
         query = query.filter(func.date(StockTransaction.transaction_date) == today)
     transactions = query.all()
 
-    # Generate PDF
+    # Generate visually appealing PDF
     buffer = BytesIO()
     p = canvas.Canvas(buffer, pagesize=letter)
     width, height = letter
-    y = height - 40
-    p.setFont("Helvetica-Bold", 16)
-    p.drawString(40, y, "Purchase History" + (" (Today)" if filter_type == "today" else " (All)"))
-    y -= 30
-    p.setFont("Helvetica", 10)
-    p.drawString(40, y, "Date")
-    p.drawString(120, y, "Medicine")
-    p.drawString(250, y, "Batch")
-    p.drawString(320, y, "Type")
-    p.drawString(370, y, "Qty")
-    p.drawString(410, y, "By")
-    p.drawString(470, y, "Role")
-    y -= 15
-    p.line(40, y, width - 40, y)
-    y -= 15
 
+    # Header
+    p.setFillColorRGB(0.13, 0.45, 0.71)  # Blue header
+    p.rect(0, height - 70, width, 70, fill=1, stroke=0)
+    p.setFillColorRGB(1, 1, 1)
+    p.setFont("Helvetica-Bold", 22)
+    p.drawString(50, height - 45, "RHU Inventory Purchase History")
+    p.setFont("Helvetica", 12)
+    p.drawString(50, height - 65, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    p.drawRightString(width - 50, height - 65, f"Filter: {'Today' if filter_type == 'today' else 'All'}")
+
+    # Table header styling
+    y = height - 90
+    p.setFillColorRGB(0.9, 0.9, 0.9)
+    p.rect(40, y - 5, width - 80, 25, fill=1, stroke=0)
+    p.setFillColorRGB(0.13, 0.45, 0.71)
+    p.setFont("Helvetica-Bold", 11)
+    p.drawString(45, y + 10, "Date")
+    p.drawString(110, y + 10, "Medicine")
+    p.drawString(220, y + 10, "Batch")
+    p.drawString(280, y + 10, "Type")
+    p.drawString(325, y + 10, "Qty")
+    p.drawString(360, y + 10, "Unit Price")
+    p.drawString(430, y + 10, "Total Price")
+    p.drawString(510, y + 10, "By")
+    p.drawString(570, y + 10, "Role")
+    # Draw a visible line under the table header
+    p.setStrokeColorRGB(0.13, 0.45, 0.71)
+    p.setLineWidth(1.5)
+    p.line(40, y - 2, width - 40, y - 2)
+    y -= 25  # More spacing after header
+
+    # Table rows
+    p.setFont("Helvetica", 10)
+    alt = False
     for tx in transactions:
         if y < 60:
             p.showPage()
-            y = height - 40
-        p.drawString(40, y, tx.transaction_date.strftime('%Y-%m-%d %H:%M'))
-        p.drawString(120, y, tx.batch.medicine.name if tx.batch and tx.batch.medicine else "N/A")
-        p.drawString(250, y, tx.batch.batch_number if tx.batch else "N/A")
-        p.drawString(320, y, tx.transaction_type)
-        p.drawString(370, y, str(tx.quantity))
-        username = tx.user.username if tx.user else str(tx.performed_by)
-        role = tx.user.role if tx.user else "N/A"
-        p.drawString(410, y, username)
-        p.drawString(470, y, role)
-        y -= 15
+            # Redraw header and table header on new page
+            p.setFillColorRGB(0.13, 0.45, 0.71)
+            p.rect(0, height - 70, width, 70, fill=1, stroke=0)
+            p.setFillColorRGB(1, 1, 1)
+            p.setFont("Helvetica-Bold", 22)
+            p.drawString(50, height - 45, "RHU Inventory Purchase History")
+            p.setFont("Helvetica", 12)
+            p.drawString(50, height - 65, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            p.drawRightString(width - 50, height - 65, f"Filter: {'Today' if filter_type == 'today' else 'All'}")
+            y = height - 90
+            p.setFillColorRGB(0.9, 0.9, 0.9)
+            p.rect(40, y - 5, width - 80, 25, fill=1, stroke=0)
+            p.setFillColorRGB(0.13, 0.45, 0.71)
+            p.setFont("Helvetica-Bold", 11)
+            p.drawString(45, y + 10, "Date")
+            p.drawString(110, y + 10, "Medicine")
+            p.drawString(220, y + 10, "Batch")
+            p.drawString(280, y + 10, "Type")
+            p.drawString(325, y + 10, "Qty")
+            p.drawString(360, y + 10, "Unit Price")
+            p.drawString(430, y + 10, "Total Price")
+            p.drawString(510, y + 10, "By")
+            p.drawString(570, y + 10, "Role")
+            p.setStrokeColorRGB(0.13, 0.45, 0.71)
+            p.setLineWidth(1.5)
+            p.line(40, y - 2, width - 40, y - 2)
+            y -= 25
+            p.setFont("Helvetica", 10)
+
+        # Alternate row color
+        if alt:
+            p.setFillColorRGB(0.96, 0.98, 1)
+            p.rect(40, y - 2, width - 80, 18, fill=1, stroke=0)
+        alt = not alt
+
+        # Data extraction
+        date_str = tx.transaction_date.strftime('%Y-%m-%d\n%H:%M')
+        medicine = tx.batch.medicine.name if tx.batch and tx.batch.medicine else "N/A"
+        batch_number = tx.batch.batch_number if tx.batch else "N/A"
+        tx_type = tx.transaction_type.upper()
+        qty = str(tx.quantity)
+        unit_price = f"{getattr(tx.batch, 'unit_price', 0):,.2f}" if tx.batch else "0.00"
+        try:
+            total_price = f"{float(unit_price.replace(',', '')) * tx.quantity:,.2f}"
+        except Exception:
+            total_price = "0.00"
+        username = tx.user.username if hasattr(tx, 'user') and tx.user else str(tx.performed_by)
+        role = tx.user.role if hasattr(tx, 'user') and tx.user and hasattr(tx.user, 'role') else "N/A"
+
+        # Type color
+        if tx_type == "IN":
+            p.setFillColorRGB(0.2, 0.7, 0.2)  # Green
+        elif tx_type == "OUT":
+            p.setFillColorRGB(0.85, 0.2, 0.2)  # Red
+        else:
+            p.setFillColorRGB(0.2, 0.2, 0.2)  # Gray
+
+        # Draw columns with more spacing and vertical lines
+        col_x = [45, 110, 220, 280, 325, 360, 430, 510, 570, width - 40]
+        p.setFont("Helvetica", 10)
+        p.setFillColorRGB(0, 0, 0)
+        p.drawRightString(col_x[1] - 5, y + 8, date_str)  # Date (right-aligned, multi-line)
+        p.drawString(col_x[1] + 2, y + 8, medicine)
+        p.drawString(col_x[2], y + 8, batch_number)
+        p.setFont("Helvetica-Bold", 10)
+        if tx_type == "IN":
+            p.setFillColorRGB(0.2, 0.7, 0.2)
+        elif tx_type == "OUT":
+            p.setFillColorRGB(0.85, 0.2, 0.2)
+        else:
+            p.setFillColorRGB(0.2, 0.2, 0.2)
+        p.drawString(col_x[3], y + 8, tx_type)
+        p.setFont("Helvetica", 10)
+        p.setFillColorRGB(0, 0, 0)
+        p.drawString(col_x[4], y + 8, qty)
+        p.drawRightString(col_x[5] + 55, y + 8, unit_price)
+        p.drawRightString(col_x[6] + 70, y + 8, total_price)
+        p.drawString(col_x[7], y + 8, username)
+        p.drawString(col_x[8], y + 8, role)
+
+        # Draw vertical lines for columns
+        p.setStrokeColorRGB(0.7, 0.7, 0.7)
+        p.setLineWidth(0.5)
+        for x in col_x:
+            p.line(x - 5, y - 2, x - 5, y + 16)
+
+        y -= 20  # Increased row height for clarity
+
+    # Footer
+    p.setFillColorRGB(0.13, 0.45, 0.71)
+    p.rect(0, 0, width, 30, fill=1, stroke=0)
+    p.setFillColorRGB(1, 1, 1)
+    p.setFont("Helvetica", 10)
+    p.drawString(50, 12, "RHU Inventory System | Purchase History Report")
+    p.drawRightString(width - 50, 12, f"Page 1")
 
     p.save()
     buffer.seek(0)
