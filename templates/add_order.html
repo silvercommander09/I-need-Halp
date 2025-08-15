@@ -59,14 +59,14 @@
                             </div>
                             <div class="col-md-1">
                                 <label class="form-label">&nbsp;</label>
-                                <button type="button" class="btn btn-outline-danger d-block remove-item" onclick="removeOrderItem(this)">
+                                <button type="button" class="btn btn-outline-danger d-block remove-item">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
                         </div>
                     </div>
                     
-                    <button type="button" class="btn btn-outline-primary mb-3" onclick="addOrderItem()">
+                    <button type="button" class="btn btn-outline-primary mb-3" id="addOrderItemBtn">
                         <i class="fas fa-plus"></i> Add Item
                     </button>
                     
@@ -83,23 +83,36 @@
 </div>
 
 <script>
-function addOrderItem() {
-    const orderItems = document.getElementById('orderItems');
-    const newItem = orderItems.children[0].cloneNode(true);
-    
-    // Clear the values
-    newItem.querySelectorAll('select, input').forEach(input => {
-        input.value = '';
-    });
-    
-    orderItems.appendChild(newItem);
-}
+document.addEventListener('DOMContentLoaded', function() {
+    // Add new order item row
+    document.getElementById('addOrderItemBtn').onclick = function() {
+        const orderItems = document.getElementById('orderItems');
+        const firstItem = orderItems.querySelector('.order-item');
+        const newItem = firstItem.cloneNode(true);
 
-function removeOrderItem(button) {
-    const orderItems = document.getElementById('orderItems');
-    if (orderItems.children.length > 1) {
-        button.closest('.order-item').remove();
-    }
-}
+        // Clear all input/select values in the new row
+        newItem.querySelectorAll('select, input').forEach(function(input) {
+            input.value = '';
+        });
+
+        // Remove any duplicate IDs from cloned elements
+        newItem.querySelectorAll('[id]').forEach(function(el) {
+            el.removeAttribute('id');
+        });
+
+        orderItems.appendChild(newItem);
+    };
+
+    // Remove order item row (event delegation)
+    document.getElementById('orderItems').addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-item') || e.target.closest('.remove-item')) {
+            const btn = e.target.classList.contains('remove-item') ? e.target : e.target.closest('.remove-item');
+            const orderItems = document.getElementById('orderItems');
+            if (orderItems.querySelectorAll('.order-item').length > 1) {
+                btn.closest('.order-item').remove();
+            }
+        }
+    });
+});
 </script>
 {% endblock %}

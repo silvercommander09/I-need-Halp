@@ -86,8 +86,8 @@
                         <div id="dispense-items-container">
                             <div class="row dispense-item mb-3 border-bottom pb-3">
                                 <div class="col-md-8">
-                                    <label for="medicine_id_0" class="form-label">Medicine:</label>
-                                    <select class="form-select medicine-select" name="medicine_id[]" id="medicine_id_0" required>
+                                    <label class="form-label">Medicine:</label>
+                                    <select class="form-select medicine-select" name="medicine_id[]" required>
                                         <option value="">Select Medicine</option>
                                         {% for medicine in medicines %}
                                             <option value="{{ medicine.id }}">{{ medicine.name }} ({{ medicine.total_quantity }} in stock)</option>
@@ -95,8 +95,13 @@
                                     </select>
                                 </div>
                                 <div class="col-md-4">
-                                    <label for="quantity_0" class="form-label">Quantity:</label>
-                                    <input type="number" class="form-control" name="quantity[]" id="quantity_0" min="1" required>
+                                    <label class="form-label">Quantity:</label>
+                                    <input type="number" class="form-control" name="quantity[]" min="1" required>
+                                </div>
+                                <div class="col-md-12 mt-2 text-end">
+                                    <button type="button" class="btn btn-danger btn-sm remove-dispense-item">
+                                        <i class="fas fa-times"></i> Remove
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -117,48 +122,38 @@
 {% block scripts %}
 {{ super() }}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        let dispenseItemCount = 1;
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('dispense-items-container');
+    const addBtn = document.getElementById('addDispenseItem');
 
-        document.getElementById('addDispenseItem').addEventListener('click', function() {
-            const container = document.getElementById('dispense-items-container');
-            const newItem = document.createElement('div');
-            newItem.classList.add('row', 'dispense-item', 'mb-3', 'border-bottom', 'pb-3');
-            newItem.innerHTML = `
-                <div class="col-md-8">
-                    <label for="medicine_id_${dispenseItemCount}" class="form-label">Medicine:</label>
-                    <select class="form-select medicine-select" name="medicine_id[]" id="medicine_id_${dispenseItemCount}" required>
-                        <option value="">Select Medicine</option>
-                        {% for medicine in medicines %}
-                            <option value="{{ medicine.id }}">{{ medicine.name }} (${medicine.total_quantity} in stock)</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label for="quantity_${dispenseItemCount}" class="form-label">Quantity:</label>
-                    <input type="number" class="form-control" name="quantity[]" id="quantity_${dispenseItemCount}" min="1" required>
-                </div>
-                <div class="col-md-12 mt-2 text-end">
-                    <button type="button" class="btn btn-danger btn-sm remove-dispense-item">
-                        <i class="fas fa-times"></i> Remove
-                    </button>
-                </div>
-            `;
-            container.appendChild(newItem);
-            dispenseItemCount++;
+    // Template for cloning
+    function getTemplate() {
+        // Clone the first .dispense-item row
+        const firstRow = container.querySelector('.dispense-item');
+        const newRow = firstRow.cloneNode(true);
+        // Clear input/select values
+        newRow.querySelectorAll('select, input').forEach(el => el.value = '');
+        // Remove any IDs from cloned elements
+        newRow.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+        return newRow;
+    }
 
-            // Add event listener for the new remove button
-            newItem.querySelector('.remove-dispense-item').addEventListener('click', function() {
-                newItem.remove();
-            });
-        });
-
-        // Add event listener for initial remove button (if any)
-        document.querySelectorAll('.remove-dispense-item').forEach(button => {
-            button.addEventListener('click', function() {
-                button.closest('.dispense-item').remove();
-            });
-        });
+    // Add new row
+    addBtn.addEventListener('click', function() {
+        const newRow = getTemplate();
+        container.appendChild(newRow);
     });
+
+    // Remove row (event delegation)
+    container.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-dispense-item') || e.target.closest('.remove-dispense-item')) {
+            const btn = e.target.classList.contains('remove-dispense-item') ? e.target : e.target.closest('.remove-dispense-item');
+            const rows = container.querySelectorAll('.dispense-item');
+            if (rows.length > 1) {
+                btn.closest('.dispense-item').remove();
+            }
+        }
+    });
+});
 </script>
 {% endblock %}
