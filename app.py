@@ -141,9 +141,10 @@ def dashboard():
 def orders():
     orders = Order.query.order_by(Order.order_date.desc()).all()
 
-    # Correctly filter medicines that have a total quantity greater than 0
+    # Filter medicines with total quantity > 0, but use generic_name instead of name
     medicines = db.session.query(Medicine).join(Batch).group_by(Medicine.id).having(func.sum(Batch.quantity) > 0).all()
 
+    # Pass medicines to template, but ensure template uses medicine.generic_name
     return render_template('orders.html', orders=orders, medicines=medicines)
 
 @app.route('/suppliers')
@@ -162,6 +163,7 @@ def inventory():
 @login_required
 def batches():
     batches = Batch.query.all()
+    # Each batch has batch.medicine, so template can use batch.medicine.generic_name
     return render_template('batches.html', batches=batches)
 
 @app.route('/reports')
@@ -588,14 +590,14 @@ def download_purchase_history():
     p.setFillColorRGB(0.13, 0.45, 0.71)
     p.setFont("Helvetica-Bold", 11)
     p.drawString(45, y + 10, "Date")
-    p.drawString(110, y + 10, "Medicine")
-    p.drawString(220, y + 10, "Batch")
-    p.drawString(280, y + 10, "Type")
-    p.drawString(325, y + 10, "Qty")
-    p.drawString(360, y + 10, "Unit Price")
-    p.drawString(430, y + 10, "Total Price")
-    p.drawString(510, y + 10, "By")
-    p.drawString(570, y + 10, "Role")
+    p.drawString(110, y + 10, "Medicine (Generic / Brand)")
+    p.drawString(250, y + 10, "Batch")
+    p.drawString(310, y + 10, "Type")
+    p.drawString(355, y + 10, "Qty")
+    p.drawString(390, y + 10, "Unit Price")
+    p.drawString(460, y + 10, "Total Price")
+    p.drawString(540, y + 10, "By")
+    p.drawString(600, y + 10, "Role")
     # Draw a visible line under the table header
     p.setStrokeColorRGB(0.13, 0.45, 0.71)
     p.setLineWidth(1.5)
@@ -623,14 +625,14 @@ def download_purchase_history():
             p.setFillColorRGB(0.13, 0.45, 0.71)
             p.setFont("Helvetica-Bold", 11)
             p.drawString(45, y + 10, "Date")
-            p.drawString(110, y + 10, "Medicine")
-            p.drawString(220, y + 10, "Batch")
-            p.drawString(280, y + 10, "Type")
-            p.drawString(325, y + 10, "Qty")
-            p.drawString(360, y + 10, "Unit Price")
-            p.drawString(430, y + 10, "Total Price")
-            p.drawString(510, y + 10, "By")
-            p.drawString(570, y + 10, "Role")
+            p.drawString(110, y + 10, "Medicine (Generic / Brand)")
+            p.drawString(250, y + 10, "Batch")
+            p.drawString(310, y + 10, "Type")
+            p.drawString(355, y + 10, "Qty")
+            p.drawString(390, y + 10, "Unit Price")
+            p.drawString(460, y + 10, "Total Price")
+            p.drawString(540, y + 10, "By")
+            p.drawString(600, y + 10, "Role")
             p.setStrokeColorRGB(0.13, 0.45, 0.71)
             p.setLineWidth(1.5)
             p.line(40, y - 2, width - 40, y - 2)
@@ -640,12 +642,15 @@ def download_purchase_history():
         # Alternate row color
         if alt:
             p.setFillColorRGB(0.96, 0.98, 1)
-            p.rect(40, y - 2, width - 80, 18, fill=1, stroke=0)
+            p.rect(40, y - 2, width - 80, 22, fill=1, stroke=0)
         alt = not alt
 
         # Data extraction
         date_str = tx.transaction_date.strftime('%Y-%m-%d\n%H:%M')
-        medicine = tx.batch.medicine.name if tx.batch and tx.batch.medicine else "N/A"
+        medicine = (
+            f"{tx.batch.medicine.generic_name} / {tx.batch.medicine.name}"
+            if tx.batch and tx.batch.medicine else "N/A"
+        )
         batch_number = tx.batch.batch_number if tx.batch else "N/A"
         tx_type = tx.transaction_type.upper()
         qty = str(tx.quantity)
@@ -666,11 +671,14 @@ def download_purchase_history():
             p.setFillColorRGB(0.2, 0.2, 0.2)  # Gray
 
         # Draw columns with more spacing and vertical lines
-        col_x = [45, 110, 220, 280, 325, 360, 430, 510, 570, width - 40]
+        col_x = [45, 110, 250, 310, 355, 390, 460, 540, 600, width - 40]
         p.setFont("Helvetica", 10)
         p.setFillColorRGB(0, 0, 0)
-        p.drawRightString(col_x[1] - 5, y + 8, date_str)  # Date (right-aligned, multi-line)
-        p.drawString(col_x[1] + 2, y + 8, medicine)
+        # Draw date as two lines to avoid overlap
+        date_lines = date_str.split('\n')
+        p.drawString(col_x[0], y + 14, date_lines[0])  # Date line 1
+        p.drawString(col_x[0], y + 2, date_lines[1])   # Date line 2
+        p.drawString(col_x[1], y + 8, medicine)
         p.drawString(col_x[2], y + 8, batch_number)
         p.setFont("Helvetica-Bold", 10)
         if tx_type == "IN":
@@ -692,9 +700,9 @@ def download_purchase_history():
         p.setStrokeColorRGB(0.7, 0.7, 0.7)
         p.setLineWidth(0.5)
         for x in col_x:
-            p.line(x - 5, y - 2, x - 5, y + 16)
+            p.line(x - 5, y - 2, x - 5, y + 20)
 
-        y -= 20  # Increased row height for clarity
+        y -= 24  # Increased row height for clarity and to prevent overlap
 
     # Footer
     p.setFillColorRGB(0.13, 0.45, 0.71)
@@ -735,6 +743,24 @@ def clear_orders():
     db.session.commit()
     flash('All orders and their items have been cleared.', 'success')
     return redirect(url_for('orders'))
+
+@app.route('/batch/<int:id>/delete-medicine', methods=['POST'])
+@login_required
+def delete_medicine_from_batch(id):
+    # Only admin and sub-admin can delete medicines from batch
+    if current_user.role not in ['admin', 'sub-admin']:
+        flash('You do not have permission to delete medicines.', 'danger')
+        return redirect(url_for('batches'))
+    batch = Batch.query.get_or_404(id)
+    medicine = Medicine.query.get_or_404(batch.medicine_id)
+    # Delete all order items related to this medicine first to avoid integrity error
+    OrderItem.query.filter_by(medicine_id=medicine.id).delete()
+    # Delete all batches related to this medicine
+    Batch.query.filter_by(medicine_id=medicine.id).delete()
+    db.session.delete(medicine)
+    db.session.commit()
+    flash('Medicine and its related batches and order items deleted successfully', 'success')
+    return redirect(url_for('batches'))
 
 # To fix this error, install the reportlab package:
 # Run this command in your terminal:

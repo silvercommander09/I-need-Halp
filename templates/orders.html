@@ -90,7 +90,7 @@
                                     <select class="form-select medicine-select" name="medicine_id[]" required>
                                         <option value="">Select Medicine</option>
                                         {% for medicine in medicines %}
-                                            <option value="{{ medicine.id }}">{{ medicine.name }} ({{ medicine.total_quantity }} in stock)</option>
+                                            <option value="{{ medicine.id }}">{{ medicine.generic_name }} ({{ medicine.total_quantity }} in stock)</option>
                                         {% endfor %}
                                     </select>
                                 </div>

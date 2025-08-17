@@ -20,19 +20,20 @@
                 <thead>
                     <tr>
                         <th>Batch Number</th>
-                        <th>Medicine</th>
+                        <th>Medicine (Generic Name / Brand Name)</th>
                         <th>Quantity</th>
                         <th>Manufacturing Date</th>
                         <th>Expiration Date</th>
                         <th>Unit Price</th>
                         <th>Status</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for batch in batches %}
                     <tr>
                         <td>{{ batch.batch_number }}</td>
-                        <td>{{ batch.medicine.name }}</td>
+                        <td>{{ batch.medicine.generic_name }} / {{ batch.medicine.name }}</td>
                         <td>
                             <span class="badge bg-{{ 'danger' if batch.quantity <= 10 else 'success' }}">
                                 {{ batch.quantity }}
@@ -48,6 +49,16 @@
                                 <span class="badge bg-warning">Expiring Soon</span>
                             {% else %}
                                 <span class="badge bg-success">Good</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if current_user.role in ['admin', 'sub-admin'] %}
+                            <form action="{{ url_for('delete_medicine_from_batch', id=batch.id) }}" method="post" style="display:inline;">
+                                <button type="submit" class="btn btn-danger btn-sm"
+                                    onclick="return confirm('Are you sure you want to delete the medicine and all its batches and order items?');">
+                                    Delete Batch
+                                </button>
+                            </form>
                             {% endif %}
                         </td>
                     </tr>
