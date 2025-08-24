@@ -517,9 +517,20 @@ def delete_supplier(id):
 @login_required
 def add_order():
     if request.method == 'POST':
+        supplier_ids = request.form.getlist('supplier_id[]')
+        medicine_ids = request.form.getlist('medicine_id[]')
+        quantities = request.form.getlist('quantity[]')
+        unit_prices = request.form.getlist('unit_price[]')
+
+        # Ensure at least one supplier is selected
+        order_supplier_id = supplier_ids[0] if supplier_ids and supplier_ids[0] else None
+        if not order_supplier_id:
+            flash('Please select a supplier for at least one item.', 'danger')
+            return redirect(url_for('add_order'))
+
         # Prevent double submission by checking for recent similar orders
         last_order = Order.query.filter_by(
-            supplier_id=request.form['supplier_id'],
+            supplier_id=order_supplier_id,
             created_by=current_user.id
         ).order_by(Order.order_date.desc()).first()
 
@@ -528,20 +539,16 @@ def add_order():
             return redirect(url_for('orders'))
 
         order = Order(
-            supplier_id=request.form['supplier_id'],
+            supplier_id=order_supplier_id,
             created_by=current_user.id,
-            status='pending'  # New orders are pending by default
+            status='pending'
         )
         db.session.add(order)
         db.session.flush()  # Get the order ID
 
-        medicine_ids = request.form.getlist('medicine_id[]')
-        quantities = request.form.getlist('quantity[]')
-        unit_prices = request.form.getlist('unit_price[]')
-
         for i in range(len(medicine_ids)):
             if medicine_ids[i] and quantities[i]:
-                # Create OrderItem
+                # Remove supplier_id from OrderItem creation
                 order_item = OrderItem(
                     order_id=order.id,
                     medicine_id=medicine_ids[i],
@@ -578,7 +585,7 @@ def download_purchase_history():
     p.rect(0, height - 70, width, 70, fill=1, stroke=0)
     p.setFillColorRGB(1, 1, 1)
     p.setFont("Helvetica-Bold", 22)
-    p.drawString(50, height - 45, "RHU Inventory Purchase History")
+    p.drawString(50, height - 45, "RHU Inventory Transaction History")
     p.setFont("Helvetica", 12)
     p.drawString(50, height - 65, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     p.drawRightString(width - 50, height - 65, f"Filter: {'Today' if filter_type == 'today' else 'All'}")
@@ -615,7 +622,7 @@ def download_purchase_history():
             p.rect(0, height - 70, width, 70, fill=1, stroke=0)
             p.setFillColorRGB(1, 1, 1)
             p.setFont("Helvetica-Bold", 22)
-            p.drawString(50, height - 45, "RHU Inventory Purchase History")
+            p.drawString(50, height - 45, "RHU Inventory Transaction History")
             p.setFont("Helvetica", 12)
             p.drawString(50, height - 65, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             p.drawRightString(width - 50, height - 65, f"Filter: {'Today' if filter_type == 'today' else 'All'}")
@@ -703,12 +710,119 @@ def download_purchase_history():
     p.rect(0, 0, width, 30, fill=1, stroke=0)
     p.setFillColorRGB(1, 1, 1)
     p.setFont("Helvetica", 10)
-    p.drawString(50, 12, "RHU Inventory System | Purchase History Report")
+    p.drawString(50, 12, "RHU Inventory System | Transaction History Report")
     p.drawRightString(width - 50, 12, f"Page 1")
 
     p.save()
     buffer.seek(0)
-    filename = f"purchase_history_{filter_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    filename = f"transaction_history_{filter_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
+
+@app.route('/report/today-total')
+@login_required
+def report_today_total():
+    """Generate PDF report for total items stored today (StockTransaction type 'in'), total stock per item, supplier name, and generic name"""
+    today = datetime.now().date()
+    # Get all 'in' transactions for today
+    transactions = StockTransaction.query.filter(
+        func.date(StockTransaction.transaction_date) == today,
+        StockTransaction.transaction_type == 'in'
+    ).all()
+    total_quantity = sum(tx.quantity for tx in transactions)
+
+    # Get total stock per medicine, supplier, and generic name
+    stock_per_medicine = db.session.query(
+        Medicine.generic_name,
+        Medicine.name,
+        Supplier.name.label('supplier_name'),
+        func.sum(Batch.quantity).label('total_quantity')
+    ).join(Supplier, Medicine.supplier_id == Supplier.id).join(Batch).group_by(Medicine.generic_name, Medicine.name, Supplier.name).all()
+
+    # Generate PDF
+    buffer = BytesIO()
+    p = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+
+    # Header
+    p.setFillColorRGB(0.13, 0.45, 0.71)
+    p.rect(0, height - 70, width, 70, fill=1, stroke=0)
+    p.setFillColorRGB(1, 1, 1)
+    p.setFont("Helvetica-Bold", 22)
+    p.drawString(50, height - 45, "RHU Inventory - Today's Stored Items")
+    p.setFont("Helvetica", 12)
+    p.drawString(50, height - 65, f"Date: {today.strftime('%Y-%m-%d')}")
+
+    # Body
+    y = height - 120
+    p.setFont("Helvetica-Bold", 14)
+    p.setFillColorRGB(0, 0, 0)
+    p.drawString(50, y, f"Total Items Stored Today: {total_quantity}")
+
+    y -= 25
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(50, y, "Total Current Stock per Item:")
+    y -= 20
+    p.setFont("Helvetica", 10)
+    p.drawString(50, y, "Generic Name")
+    p.drawString(170, y, "Medicine (Brand Name)")
+    p.drawString(320, y, "Supplier")
+    p.drawString(450, y, "Total Stock")
+    y -= 15
+    p.setStrokeColorRGB(0.13, 0.45, 0.71)
+    p.line(50, y, width - 50, y)
+    y -= 10
+
+    for item in stock_per_medicine:
+        if y < 60:
+            p.showPage()
+            y = height - 80
+        p.setFont("Helvetica", 10)
+        p.drawString(50, y, str(item.generic_name))
+        p.drawString(170, y, str(item.name))
+        p.drawString(320, y, str(item.supplier_name))
+        p.drawString(450, y, str(item.total_quantity))
+        y -= 15
+
+    y -= 20
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(50, y, "Breakdown of Today's Added Items:")
+    y -= 20
+    p.setFont("Helvetica", 10)
+    p.drawString(50, y, "Generic Name")
+    p.drawString(170, y, "Medicine")
+    p.drawString(320, y, "Batch")
+    p.drawString(420, y, "Quantity")
+    y -= 15
+    p.setStrokeColorRGB(0.13, 0.45, 0.71)
+    p.line(50, y, width - 50, y)
+    y -= 10
+
+    for tx in transactions:
+        if y < 60:
+            p.showPage()
+            y = height - 80
+        generic_name = tx.batch.medicine.generic_name if tx.batch and tx.batch.medicine else "N/A"
+        medicine = tx.batch.medicine.name if tx.batch and tx.batch.medicine else "N/A"
+        batch_number = tx.batch.batch_number if tx.batch else "N/A"
+        qty = tx.quantity
+        p.setFont("Helvetica", 10)
+        p.drawString(50, y, str(generic_name))
+        p.drawString(170, y, str(medicine))
+        p.drawString(320, y, str(batch_number))
+        p.drawString(420, y, str(qty))
+        y -= 15
+
+    # Footer
+    p.setFillColorRGB(0.13, 0.45, 0.71)
+    p.rect(0, 0, width, 30, fill=1, stroke=0)
+    p.setFillColorRGB(1, 1, 1)
+    p.setFont("Helvetica", 10)
+    p.drawString(50, 12, "RHU Inventory System | Today's Stored Items Report")
+    p.drawRightString(width - 50, 12, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+    p.save()
+    buffer.seek(0)
+    filename = f"today_total_stored_{today.strftime('%Y%m%d')}.pdf"
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
 
 @app.route('/clear-transactions', methods=['POST'])

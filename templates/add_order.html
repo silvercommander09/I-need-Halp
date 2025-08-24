@@ -15,19 +15,19 @@
         <div class="card">
             <div class="card-body">
                 <form method="POST" id="orderForm">
-                    <div class="mb-3">
-                        <label for="supplier_id" class="form-label">Supplier *</label>
-                        <select class="form-select" id="supplier_id" name="supplier_id" required>
-                            <option value="">Select Supplier</option>
-                            {% for supplier in suppliers %}
-                            <option value="{{ supplier.id }}">{{ supplier.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
                     <h5>Order Items</h5>
                     <div id="orderItems">
                         <div class="row order-item mb-3">
+                            <!-- Add supplier selector inside each order item -->
+                            <div class="col-md-2">
+                                <label class="form-label">Supplier *</label>
+                                <select class="form-select" name="supplier_id[]" required>
+                                    <option value="">Select Supplier</option>
+                                    {% for supplier in suppliers %}
+                                    <option value="{{ supplier.id }}">{{ supplier.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
                             <div class="col-md-3">
                                 <label class="form-label">Medicine</label>
                                 <select class="form-select" name="medicine_id[]" required>
@@ -90,8 +90,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const firstItem = orderItems.querySelector('.order-item');
         const newItem = firstItem.cloneNode(true);
 
-        // Clear all input/select values in the new row
-        newItem.querySelectorAll('select, input').forEach(function(input) {
+        // Reset all select elements to their first option
+        newItem.querySelectorAll('select').forEach(function(select) {
+            select.selectedIndex = 0;
+        });
+        // Clear all input values
+        newItem.querySelectorAll('input').forEach(function(input) {
             input.value = '';
         });
 

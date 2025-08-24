@@ -155,17 +155,17 @@
                 <div class="d-flex justify-content-end mb-2">
                     <div class="dropdown me-2">
                         <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="downloadMenu" data-bs-toggle="dropdown" aria-expanded="false">
-                            Download Purchase History
+                            Download Transactions History
                         </button>
                         <ul class="dropdown-menu" aria-labelledby="downloadMenu">
                             <li>
                                 <a class="dropdown-item" href="{{ url_for('download_purchase_history', filter='today') }}">
-                                    Download Today's Purchase History (PDF)
+                                    Download Today's Transactions History (PDF)
                                 </a>
                             </li>
                             <li>
                                 <a class="dropdown-item" href="{{ url_for('download_purchase_history', filter='all') }}">
-                                    Download All Purchase History (PDF)
+                                    Download Transactions History (PDF)
                                 </a>
                             </li>
                         </ul>

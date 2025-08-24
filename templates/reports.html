@@ -8,6 +8,13 @@
     <h1 class="h2">Reports</h1>
 </div>
 
+<!-- Button to generate today's stored items PDF -->
+<div class="mb-4">
+    <a href="{{ url_for('report_today_total') }}" class="btn btn-info" target="_blank">
+        <i class="fas fa-file-pdf"></i> Generate Today's Stored Items PDF
+    </a>
+</div>
+
 <div class="row">
     <!-- Stock Levels Report -->
     <div class="col-md-6 mb-4">
