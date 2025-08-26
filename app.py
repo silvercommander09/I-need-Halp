@@ -459,6 +459,8 @@ def edit_batch(id):
 @login_required
 def delete_batch(id):
     batch = Batch.query.get_or_404(id)
+    # Delete all stock transactions related to this batch first to avoid integrity error
+    StockTransaction.query.filter_by(batch_id=batch.id).delete()
     db.session.delete(batch)
     db.session.commit()
     flash('Batch deleted successfully', 'success')
