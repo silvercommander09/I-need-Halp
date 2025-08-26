@@ -510,6 +510,13 @@ def delete_supplier(id):
         flash('You do not have permission to delete suppliers.', 'danger')
         return redirect(url_for('suppliers'))
     supplier = Supplier.query.get_or_404(id)
+
+    # Prevent NOT NULL constraint error by reassigning or handling medicines before deleting supplier
+    medicines = Medicine.query.filter_by(supplier_id=supplier.id).all()
+    if medicines:
+        flash('Cannot delete supplier: There are medicines assigned to this supplier. Please reassign or delete those medicines first.', 'danger')
+        return redirect(url_for('suppliers'))
+
     db.session.delete(supplier)
     db.session.commit()
     flash('Supplier deleted successfully', 'success')
