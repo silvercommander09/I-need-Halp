@@ -220,17 +220,15 @@ def process_order(id):
     if order.status != 'pending':
         flash('Order is already processed.', 'warning')
         return redirect(url_for('orders'))
-    # Mark order as delivered
     order.status = 'delivered'
 
-    # Add to StockTransaction for each item in the order
     for item in order.items:
         # Find a batch for this medicine or create a new one (simple logic)
         batch = Batch.query.filter_by(medicine_id=item.medicine_id).order_by(Batch.expiration_date.desc()).first()
         if batch and not batch.is_expired:
             batch.quantity += item.quantity
+            db.session.add(batch)
         else:
-            # If no batch exists or all are expired, create a new batch
             batch = Batch(
                 batch_number=f"ORDER-{order.id}-{item.medicine_id}",
                 medicine_id=item.medicine_id,
@@ -240,16 +238,18 @@ def process_order(id):
                 unit_price=item.unit_price
             )
             db.session.add(batch)
+            db.session.flush()  # Ensure batch.id is available
 
-        # Record StockTransaction
-        transaction = StockTransaction(
-            batch_id=batch.id,
-            transaction_type='in',
-            quantity=item.quantity, # FIX: Changed from 'dispense_from_batch' to 'item.quantity'
-            performed_by=current_user.id,
-            notes=f"From Order #{order.id}"
-        )
-        db.session.add(transaction)
+        # Only create StockTransaction if batch.id is available
+        if batch.id:
+            transaction = StockTransaction(
+                batch_id=batch.id,
+                transaction_type='in',
+                quantity=item.quantity,
+                performed_by=current_user.id,
+                notes=f"From Order #{order.id}"
+            )
+            db.session.add(transaction)
 
     db.session.commit()
     flash('Order processed and stock updated. Transactions recorded.', 'success')
